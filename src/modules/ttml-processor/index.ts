@@ -81,23 +81,60 @@ function withDefaultGeneratorConfig(
  * Keep the x-bg structure, but remove only that generated outer pair.
  */
 function removeBackgroundVocalParentheses(ttml: string): string {
-	return ttml.replace(
-		/(<span\b(?=[^>]*\bttm:role=(["'])x-bg\2)[^>]*>)([\s\S]*?)(<\/span>\s*<\/span>)/g,
-		(
-			fullMatch,
-			openingTag: string,
-			_quote: string,
-			content: string,
-			closingTags: string,
-		) => {
-			const withoutOpening = content.replace(/(<span\b[^>]*>)\(/, "$1");
-			if (withoutOpening === content || !withoutOpening.endsWith(")")) {
-				return fullMatch;
+	const backgroundSpanPattern =
+		/<span\b(?=[^>]*\bttm:role=(["'])x-bg\1)[^>]*>/g;
+	const spanTagPattern = /<\/?span\b[^>]*>/g;
+	let output = "";
+	let copiedThrough = 0;
+	let backgroundMatch = backgroundSpanPattern.exec(ttml);
+
+	while (backgroundMatch) {
+		spanTagPattern.lastIndex = backgroundMatch.index;
+		let depth = 0;
+		let closingStart = -1;
+		let closingEnd = -1;
+		let spanMatch = spanTagPattern.exec(ttml);
+
+		while (spanMatch) {
+			if (spanMatch[0].startsWith("</")) {
+				depth--;
+				if (depth === 0) {
+					closingStart = spanMatch.index;
+					closingEnd = spanTagPattern.lastIndex;
+					break;
+				}
+			} else {
+				depth++;
 			}
 
-			return `${openingTag}${withoutOpening.slice(0, -1)}${closingTags}`;
-		},
-	);
+			spanMatch = spanTagPattern.exec(ttml);
+		}
+
+		if (closingStart < 0) break;
+
+		const contentStart = backgroundMatch.index + backgroundMatch[0].length;
+		const openingParenthesis = ttml.indexOf("(", contentStart);
+		const closingParenthesis = ttml.lastIndexOf(")", closingStart);
+
+		output += ttml.slice(copiedThrough, backgroundMatch.index);
+		if (
+			openingParenthesis >= contentStart &&
+			openingParenthesis < closingStart &&
+			closingParenthesis > openingParenthesis
+		) {
+			output += ttml.slice(backgroundMatch.index, openingParenthesis);
+			output += ttml.slice(openingParenthesis + 1, closingParenthesis);
+			output += ttml.slice(closingParenthesis + 1, closingEnd);
+		} else {
+			output += ttml.slice(backgroundMatch.index, closingEnd);
+		}
+
+		copiedThrough = closingEnd;
+		backgroundSpanPattern.lastIndex = closingEnd;
+		backgroundMatch = backgroundSpanPattern.exec(ttml);
+	}
+
+	return `${output}${ttml.slice(copiedThrough)}`;
 }
 
 function postProcessGeneratedTTML(result: Result<string>): Result<string> {
