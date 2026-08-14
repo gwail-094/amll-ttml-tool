@@ -15,6 +15,10 @@ import { atomWithStorage } from "jotai/utils";
 import { memo, type PropsWithChildren, useCallback, useState } from "react";
 import { toast } from "react-toastify";
 import type { SegmentationConfig } from "$/modules/segmentation/types";
+import {
+	romanizeArabicSegments,
+	segmentArabicText,
+} from "$/modules/segmentation/utils/arabicRomanization.ts";
 import { romanizeChineseSegments } from "$/modules/segmentation/utils/chineseRomanization.ts";
 import { romanizeJapaneseWithKanjiSegments } from "$/modules/segmentation/utils/japaneseKanjiRomanization.ts";
 import { romanizeKoreanSegments } from "$/modules/segmentation/utils/koreanRomanization.ts";
@@ -90,6 +94,7 @@ enum AutoRomanizationLanguage {
 	Chinese = "chinese",
 	Thai = "thai",
 	Russian = "russian",
+	Arabic = "arabic",
 }
 const autoRomanizationLanguageAtom = atomWithStorage(
 	"importFromText.autoRomanizationLanguage",
@@ -437,6 +442,14 @@ export const ImportFromText = () => {
 							...newLyricWord(),
 							word,
 						}));
+					} else if (
+						autoRomanizationLanguage === AutoRomanizationLanguage.Arabic &&
+						/[\u0600-\u06ff]/u.test(wholeLine)
+					) {
+						line.words = segmentArabicText(wholeLine).map((word) => ({
+							...newLyricWord(),
+							word,
+						}));
 					} else {
 						line.words = segmentWord(
 							line.words[0],
@@ -483,17 +496,22 @@ export const ImportFromText = () => {
 						wordRomanizations = romanizeRussianSegments(
 							line.words.map((word) => word.word),
 						);
+					} else if (
+						autoRomanizationLanguage === AutoRomanizationLanguage.Arabic &&
+						/[\u0600-\u06ff]/u.test(wholeLine)
+					) {
+						wordRomanizations = romanizeArabicSegments(
+							line.words.map((word) => word.word),
+						);
 					}
 					if (!wordRomanizations) continue;
 					const firstRomanizedWord = wordRomanizations.findIndex(
 						(romanization) => romanization.length > 0,
 					);
 					if (firstRomanizedWord >= 0) {
-						wordRomanizations[firstRomanizedWord] =
-							wordRomanizations[firstRomanizedWord]
-								.charAt(0)
-								.toLocaleUpperCase() +
-							wordRomanizations[firstRomanizedWord].slice(1);
+						wordRomanizations[firstRomanizedWord] = wordRomanizations[
+							firstRomanizedWord
+						].replace(/\p{L}/u, (letter) => letter.toLocaleUpperCase());
 					}
 					for (const [index, word] of line.words.entries()) {
 						word.romanWord = wordRomanizations[index] ?? "";
@@ -849,6 +867,9 @@ export const ImportFromText = () => {
 									</Select.Item>
 									<Select.Item value={AutoRomanizationLanguage.Russian}>
 										Russian — English-friendly
+									</Select.Item>
+									<Select.Item value={AutoRomanizationLanguage.Arabic}>
+										Arabic — Simplified Latin
 									</Select.Item>
 								</Select.Content>
 							</Select.Root>
