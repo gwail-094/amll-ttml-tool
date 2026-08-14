@@ -3,6 +3,7 @@ import {
 	Dialog,
 	Flex,
 	Grid,
+	Progress,
 	Select,
 	Switch,
 	Text,
@@ -11,7 +12,7 @@ import {
 } from "@radix-ui/themes";
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { memo, type PropsWithChildren, useCallback } from "react";
+import { memo, type PropsWithChildren, useCallback, useState } from "react";
 import { toast } from "react-toastify";
 import type { SegmentationConfig } from "$/modules/segmentation/types";
 import { romanizeJapaneseWithKanjiSegments } from "$/modules/segmentation/utils/japaneseKanjiRomanization.ts";
@@ -155,6 +156,7 @@ const ImportFromTextEditor = memo(
 );
 
 export const ImportFromText = () => {
+	const [isImporting, setIsImporting] = useState(false);
 	const setConfirmDialog = useSetAtom(confirmDialogAtom);
 	const isDirty = useAtomValue(isDirtyAtom);
 	const { t } = useTranslation();
@@ -467,78 +469,121 @@ export const ImportFromText = () => {
 						>
 							{t("textImportDialog.title", "导入纯文本歌词")}
 						</Dialog.Title>
-						<Button
-							onClick={() => {
-								try {
-									const importAction = () => {
-										let textToImport = store.get(textValueAtom);
-										if (
-											store.get(separateTranslationInputAtom) &&
-											store.get(importModeAtom) === ImportMode.LyricTrans
-										) {
-											const splitLines = (value: string) => {
-												return value
-													.replace(/\r\n?/g, "\n")
-													.split("\n")
-													.filter((line) => line.trim().length > 0);
-											};
-											const originalLines = splitLines(textToImport);
-											const translationLines = splitLines(
-												store.get(translationTextValueAtom),
-											);
-
-											if (originalLines.length !== translationLines.length) {
-												error(
-													t(
-														"textImportDialog.lineCountMismatch",
-														`Original and translation must have the same number of lines (${originalLines.length} original, ${translationLines.length} translated).`,
-													),
+						<Flex direction="column" gap="2" align="end">
+							<Button
+								disabled={isImporting}
+								onClick={() => {
+									try {
+										const importAction = async () => {
+											let textToImport = store.get(textValueAtom);
+											if (
+												store.get(separateTranslationInputAtom) &&
+												store.get(importModeAtom) === ImportMode.LyricTrans
+											) {
+												const splitLines = (value: string) => {
+													return value
+														.replace(/\r\n?/g, "\n")
+														.split("\n")
+														.filter((line) => line.trim().length > 0);
+												};
+												const originalLines = splitLines(textToImport);
+												const translationLines = splitLines(
+													store.get(translationTextValueAtom),
 												);
-												return;
+
+												if (originalLines.length !== translationLines.length) {
+													error(
+														t(
+															"textImportDialog.lineCountMismatch",
+															`Original and translation must have the same number of lines (${originalLines.length} original, ${translationLines.length} translated).`,
+														),
+													);
+													return;
+												}
+
+												textToImport = originalLines
+													.flatMap((line, index) => [
+														line,
+														translationLines[index],
+													])
+													.join("\n");
 											}
 
-											textToImport = originalLines
-												.flatMap((line, index) => [
-													line,
-													translationLines[index],
-												])
-												.join("\n");
-										}
-
-										void onImport(
-											textToImport,
-											store.get(separateTranslationInputAtom) &&
-												store.get(importModeAtom) === ImportMode.LyricTrans
-												? LineSeparatorMode.Interleaved
-												: undefined,
-										).then(() => setImportFromTextDialog(false));
-									};
-									if (isDirty)
-										setConfirmDialog({
-											open: true,
-											title: t(
-												"confirmDialog.importFile.title",
-												"确认导入歌词",
-											),
-											description: t(
-												"confirmDialog.importFile.description",
-												"当前文件有未保存的更改。如果继续，这些更改将会丢失。确定要导入歌词吗？",
-											),
-											onConfirm: () => importAction(),
-										});
-									else importAction();
-								} catch (e) {
-									error(
-										e instanceof Error
-											? e.message
-											: "导入纯文本歌词失败，请检查输入的文本是否正确，或者导入设置是否正确",
-									);
-									projectLogger.error(e);
-								}
-							}}
-						>
-							{t("textImportDialog.actionButton", "导入歌词")}
-						</Button>
+											setIsImporting(true);
+											// Let React paint the loading indicator before the Japanese
+											// dictionary performs its one-time initialization work.
+											await new Promise<void>((resolve) =>
+												requestAnimationFrame(() =>
+													requestAnimationFrame(() => resolve()),
+												),
+											);
+											try {
+												await onImport(
+													textToImport,
+													store.get(separateTranslationInputAtom) &&
+														store.get(importModeAtom) === ImportMode.LyricTrans
+														? LineSeparatorMode.Interleaved
+														: undefined,
+												);
+												setImportFromTextDialog(false);
+											} catch (e) {
+												error(
+													e instanceof Error
+														? e.message
+														: "Failed to import lyrics",
+												);
+												projectLogger.error(e);
+											} finally {
+												setIsImporting(false);
+											}
+										};
+										if (isDirty)
+											setConfirmDialog({
+												open: true,
+												title: t(
+													"confirmDialog.importFile.title",
+													"确认导入歌词",
+												),
+												description: t(
+													"confirmDialog.importFile.description",
+													"当前文件有未保存的更改。如果继续，这些更改将会丢失。确定要导入歌词吗？",
+												),
+												onConfirm: () => void importAction(),
+											});
+										else void importAction();
+									} catch (e) {
+										error(
+											e instanceof Error
+												? e.message
+												: "导入纯文本歌词失败，请检查输入的文本是否正确，或者导入设置是否正确",
+										);
+										projectLogger.error(e);
+									}
+								}}
+							>
+								{isImporting
+									? t("textImportDialog.importing", "Importing…")
+									: t("textImportDialog.actionButton", "导入歌词")}
+							</Button>
+							{isImporting && (
+								<Flex direction="column" gap="1" style={{ width: "18rem" }}>
+									<Text size="2" color="gray" align="center">
+										{autoRomanizeEnabled &&
+										autoRomanizationLanguage ===
+											AutoRomanizationLanguage.Japanese
+											? t(
+													"textImportDialog.loadingJapaneseDictionary",
+													"Loading Japanese dictionary… First use may take a moment.",
+												)
+											: t(
+													"textImportDialog.processingLyrics",
+													"Processing lyrics…",
+												)}
+									</Text>
+									<Progress value={null} aria-label="Import progress" />
+								</Flex>
+							)}
+						</Flex>
 					</Flex>
 					<Flex
 						gap="4"
