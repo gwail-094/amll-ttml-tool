@@ -68,6 +68,10 @@ const separateTranslationInputAtom = atomWithStorage(
 );
 const wordSeparatorAtom = atomWithStorage("importFromText.wordSeparator", "\\");
 const autoSegmentAtom = atomWithStorage("importFromText.autoSegment", true);
+const extractTrailingBgAtom = atomWithStorage(
+	"importFromText.extractTrailingBackgroundVocal",
+	true,
+);
 const enableSpecialPrefixAtom = atomWithStorage(
 	"importFromText.enableSpecialPrefix",
 	false,
@@ -158,6 +162,9 @@ export const ImportFromText = () => {
 	);
 	const [wordSeparator, setWordSeparator] = useAtom(wordSeparatorAtom);
 	const [autoSegment, setAutoSegment] = useAtom(autoSegmentAtom);
+	const [extractTrailingBg, setExtractTrailingBg] = useAtom(
+		extractTrailingBgAtom,
+	);
 	const [enableSpecialPrefix, setEnableSpecialPrefix] = useAtom(
 		enableSpecialPrefixAtom,
 	);
@@ -177,6 +184,7 @@ export const ImportFromText = () => {
 			const swapTransAndRoman = store.get(swapTransAndRomanAtom);
 			const wordSeparator = store.get(wordSeparatorAtom);
 			const autoSegment = store.get(autoSegmentAtom);
+			const extractTrailingBg = store.get(extractTrailingBgAtom);
 			const enableSpecialPrefix = store.get(enableSpecialPrefixAtom);
 			const bgLyricPrefix = store.get(bgLyricPrefixAtom);
 			const duetLyricPrefix = store.get(duetLyricPrefixAtom);
@@ -206,6 +214,24 @@ export const ImportFromText = () => {
 					}
 				}
 
+				let trailingBgText = "";
+				if (extractTrailingBg && !isBG) {
+					const trailingBgMatch = finalOrig.match(
+						/^(.*?)\s*[(（]([^()（）]+)[)）]\s*$/,
+					);
+					if (trailingBgMatch) {
+						const mainText = trailingBgMatch[1].trimEnd();
+						const bgText = trailingBgMatch[2].trim();
+						if (mainText && bgText) {
+							finalOrig = mainText;
+							trailingBgText = bgText;
+						} else if (bgText) {
+							finalOrig = bgText;
+							isBG = true;
+						}
+					}
+				}
+
 				const line: LyricLine = {
 					...newLyricLine(),
 					words: [
@@ -221,6 +247,19 @@ export const ImportFromText = () => {
 				};
 
 				result.push(line);
+				if (trailingBgText) {
+					result.push({
+						...newLyricLine(),
+						words: [
+							{
+								...newLyricWord(),
+								word: trailingBgText,
+							},
+						],
+						isBG: true,
+						isDuet,
+					});
+				}
 				return line;
 			}
 
@@ -584,6 +623,17 @@ export const ImportFromText = () => {
 								)}
 							</PrefText>
 							<Switch checked={autoSegment} onCheckedChange={setAutoSegment} />
+
+							<PrefText>
+								{t(
+									"textImportDialog.extractTrailingBackgroundVocal",
+									"Extract trailing parentheses as background vocals",
+								)}
+							</PrefText>
+							<Switch
+								checked={extractTrailingBg}
+								onCheckedChange={setExtractTrailingBg}
+							/>
 
 							<PrefText>
 								{t("textImportDialog.enableSpecialPrefix", "启用特殊前缀")}
