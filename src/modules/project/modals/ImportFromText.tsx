@@ -429,10 +429,10 @@ export const ImportFromText = () => {
 											store.get(importModeAtom) === ImportMode.LyricTrans
 										) {
 											const splitLines = (value: string) => {
-												const lines = value.replace(/\r\n?/g, "\n").split("\n");
-												while (lines.length > 1 && lines.at(-1) === "")
-													lines.pop();
-												return lines;
+												return value
+													.replace(/\r\n?/g, "\n")
+													.split("\n")
+													.filter((line) => line.trim().length > 0);
 											};
 											const originalLines = splitLines(textToImport);
 											const translationLines = splitLines(
