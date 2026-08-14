@@ -15,7 +15,6 @@ import {
 	highlightActiveWordAtom,
 	highlightErrorsAtom,
 	showTimestampsAtom,
-	showWordRomanizationInputAtom,
 } from "$/modules/settings/states/index.ts";
 import {
 	currentEmptyBeatAtom,
@@ -90,9 +89,6 @@ export const SyncModeRibbonBar: FC = forwardRef<HTMLDivElement>(
 			bgLyricIgnoreSyncAtom,
 		);
 		const editLyricLines = useSetImmerAtom(lyricLinesAtom);
-		const showWordRomanizationInput = useAtomValue(
-			showWordRomanizationInputAtom,
-		);
 		const [syncTimeOffset, setSyncTimeOffset] = useAtom(syncTimeOffsetAtom);
 		const { t } = useTranslation();
 
@@ -191,20 +187,16 @@ export const SyncModeRibbonBar: FC = forwardRef<HTMLDivElement>(
 							checked={highlightErrors}
 							onCheckedChange={(v) => setHighlightErrors(!!v)}
 						/>
-						{showWordRomanizationInput && (
-							<>
-								<Text wrap="nowrap" size="1">
-									{t(
-										"ribbonBar.syncMode.showPerWordRomanization",
-										"显示逐字音译",
-									)}
-								</Text>
-								<Checkbox
-									checked={displayRomanizationInSync}
-									onCheckedChange={(v) => setdisplayRomanizationInSync(!!v)}
-								/>
-							</>
-						)}
+						<Text wrap="nowrap" size="1">
+							{t(
+								"ribbonBar.syncMode.showPerWordRomanization",
+								"显示逐字音译",
+							)}
+						</Text>
+						<Checkbox
+							checked={displayRomanizationInSync}
+							onCheckedChange={(v) => setdisplayRomanizationInSync(!!v)}
+						/>
 					</Grid>
 				</RibbonSection>
 				<RibbonSection

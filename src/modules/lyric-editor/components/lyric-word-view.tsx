@@ -94,11 +94,7 @@ const getDisplayWordText = (
 	) => string,
 	word: string,
 	isWordBlank: boolean,
-	romanWord?: string,
-	displayRomanizationInSync?: boolean,
 ) => {
-	if (displayRomanizationInSync && romanWord && romanWord.trim() !== "")
-		return romanWord;
 	if (word === "") return t("lyricWordView.empty", "空白");
 	if (isWordBlank)
 		return t("lyricWordView.spaceCount", "空格 x{count}", {
@@ -748,9 +744,19 @@ const LyricSyncWordView: FC<{
 	startTime: number;
 	endTime: number;
 	displayWord: string;
+	romanization?: string;
 	isWordBlank: boolean;
 	word?: string;
-}> = ({ syncId, line, startTime, endTime, displayWord, isWordBlank, word }) => {
+}> = ({
+	syncId,
+	line,
+	startTime,
+	endTime,
+	displayWord,
+	romanization,
+	isWordBlank,
+	word,
+}) => {
 	const isWordSelectedAtom = useMemo(
 		() => atom((get) => get(selectedWordsAtom).has(syncId)),
 		[syncId],
@@ -897,7 +903,12 @@ const LyricSyncWordView: FC<{
 					{msToTimestamp(startTime)}
 				</div>
 			)}
-			<div className={styles.displayWord}>{displayWord}</div>
+			<div className={styles.syncWordText}>
+				<div className={styles.displayWord}>{displayWord}</div>
+				{romanization && (
+					<div className={styles.syncRomanization}>{romanization}</div>
+				)}
+			</div>
 			{showTimestamps && (
 				<div className={classNames(styles.endTime)} ref={endTimeRef}>
 					{showEndTimeAsDuration
@@ -920,13 +931,8 @@ const LyricWorldViewSync: FC<{
 	const displayRomanizationInSync = useAtomValue(displayRomanizationInSyncAtom);
 	const isWordBlank = useWordBlank(word.word);
 	const getDisplayWord = useCallback(
-		(
-			displayText: string,
-			isBlank: boolean,
-			romanWord?: string,
-			showRomanization?: boolean,
-		) =>
-			getDisplayWordText(t, displayText, isBlank, romanWord, showRomanization),
+		(displayText: string, isBlank: boolean) =>
+			getDisplayWordText(t, displayText, isBlank),
 		[t],
 	);
 
@@ -960,12 +966,12 @@ const LyricWorldViewSync: FC<{
 			line={line}
 			startTime={word.startTime}
 			endTime={word.endTime}
-			displayWord={getDisplayWord(
-				word.word,
-				isWordBlank,
-				word.romanWord,
-				displayRomanizationInSync,
-			)}
+			displayWord={getDisplayWord(word.word, isWordBlank)}
+			romanization={
+				displayRomanizationInSync && word.romanWord.trim()
+					? word.romanWord
+					: undefined
+			}
 			isWordBlank={isWordBlank}
 			word={word.word}
 		/>

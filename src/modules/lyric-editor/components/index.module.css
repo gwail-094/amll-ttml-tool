@@ -122,6 +122,23 @@
 	font-size: 1.5em;
 }
 
+.syncWordText {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	line-height: 1.15;
+}
+
+.syncRomanization {
+	margin-top: 0.2em;
+	font-size: 1.15em;
+	color: var(--gray-12);
+	text-decoration: underline;
+	text-decoration-color: var(--red-9);
+	text-underline-offset: 0.2em;
+}
+
 .startTime,
 .endTime {
 	padding: 0.05em 0.5em;
