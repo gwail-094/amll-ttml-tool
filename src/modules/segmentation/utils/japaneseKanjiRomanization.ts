@@ -159,6 +159,18 @@ export async function romanizeJapaneseWithKanjiSegments(
 			Array.from(segment).map((character) => ({ character, segmentIndex })),
 		);
 		let characterIndex = 0;
+		const applyReading = (surface: string, reading: string) => {
+			const surfaceCharacters = Array.from(surface);
+			const groupStart = characterIndex;
+			characterIndex += surfaceCharacters.length;
+
+			if (!HAS_KANJI.test(surface)) return;
+			const firstKanjiOffset = surfaceCharacters.findIndex((character) =>
+				HAS_KANJI.test(character),
+			);
+			const target = flattened[groupStart + Math.max(0, firstKanjiOffset)];
+			if (target) result[target.segmentIndex] = reading;
+		};
 
 		const visit = (node: Node) => {
 			if (node.nodeType === Node.TEXT_NODE) {
@@ -172,27 +184,25 @@ export async function romanizeJapaneseWithKanjiSegments(
 				return;
 			}
 
-			const surface = Array.from(node.childNodes)
-				.filter(
-					(child) =>
-						child.nodeType === Node.TEXT_NODE ||
-						(child instanceof HTMLElement &&
-							child.tagName !== "RT" &&
-							child.tagName !== "RP"),
-				)
-				.map((child) => child.textContent ?? "")
-				.join("");
-			const reading = node.querySelector("rt")?.textContent ?? "";
-			const surfaceCharacters = Array.from(surface);
-			const groupStart = characterIndex;
-			characterIndex += surfaceCharacters.length;
-
-			if (!HAS_KANJI.test(surface)) return;
-			const firstKanjiOffset = surfaceCharacters.findIndex((character) =>
-				HAS_KANJI.test(character),
-			);
-			const target = flattened[groupStart + Math.max(0, firstKanjiOffset)];
-			if (target) result[target.segmentIndex] = reading;
+			const children = Array.from(node.childNodes);
+			for (const [index, child] of children.entries()) {
+				if (child.nodeType !== Node.TEXT_NODE) continue;
+				const surface = child.textContent ?? "";
+				let reading = "";
+				for (
+					let following = index + 1;
+					following < children.length;
+					following++
+				) {
+					const sibling = children[following];
+					if (sibling.nodeType === Node.TEXT_NODE) break;
+					if (sibling instanceof HTMLElement && sibling.tagName === "RT") {
+						reading = sibling.textContent ?? "";
+						break;
+					}
+				}
+				applyReading(surface, reading);
+			}
 		};
 		for (const child of documentNode.body.childNodes) visit(child);
 		return result;
