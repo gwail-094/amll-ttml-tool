@@ -16,6 +16,8 @@ import { toast } from "react-toastify";
 import type { SegmentationConfig } from "$/modules/segmentation/types";
 import { romanizeKoreanSegments } from "$/modules/segmentation/utils/koreanRomanization.ts";
 import { segmentWord } from "$/modules/segmentation/utils/segmentation.ts";
+import { predictLineRomanization } from "$/modules/segmentation/utils/Transliteration/distributor";
+import { getDictionaryRomaji } from "$/modules/segmentation/utils/Transliteration/TransliterationUtils";
 import {
 	confirmDialogAtom,
 	importFromTextDialogAtom,
@@ -69,9 +71,17 @@ const separateTranslationInputAtom = atomWithStorage(
 );
 const wordSeparatorAtom = atomWithStorage("importFromText.wordSeparator", "\\");
 const autoSegmentAtom = atomWithStorage("importFromText.autoSegment", true);
-const autoRomanizeKoreanAtom = atomWithStorage(
+const autoRomanizeEnabledAtom = atomWithStorage(
 	"importFromText.autoRomanizeKorean",
 	true,
+);
+enum AutoRomanizationLanguage {
+	Korean = "korean",
+	Japanese = "japanese",
+}
+const autoRomanizationLanguageAtom = atomWithStorage(
+	"importFromText.autoRomanizationLanguage",
+	AutoRomanizationLanguage.Korean,
 );
 const extractTrailingBgAtom = atomWithStorage(
 	"importFromText.extractTrailingBackgroundVocal",
@@ -167,8 +177,11 @@ export const ImportFromText = () => {
 	);
 	const [wordSeparator, setWordSeparator] = useAtom(wordSeparatorAtom);
 	const [autoSegment, setAutoSegment] = useAtom(autoSegmentAtom);
-	const [autoRomanizeKorean, setAutoRomanizeKorean] = useAtom(
-		autoRomanizeKoreanAtom,
+	const [autoRomanizeEnabled, setAutoRomanizeEnabled] = useAtom(
+		autoRomanizeEnabledAtom,
+	);
+	const [autoRomanizationLanguage, setAutoRomanizationLanguage] = useAtom(
+		autoRomanizationLanguageAtom,
 	);
 	const [extractTrailingBg, setExtractTrailingBg] = useAtom(
 		extractTrailingBgAtom,
@@ -192,7 +205,8 @@ export const ImportFromText = () => {
 			const swapTransAndRoman = store.get(swapTransAndRomanAtom);
 			const wordSeparator = store.get(wordSeparatorAtom);
 			const autoSegment = store.get(autoSegmentAtom);
-			const autoRomanizeKorean = store.get(autoRomanizeKoreanAtom);
+			const autoRomanizeEnabled = store.get(autoRomanizeEnabledAtom);
+			const autoRomanizationLanguage = store.get(autoRomanizationLanguageAtom);
 			const extractTrailingBg = store.get(extractTrailingBgAtom);
 			const enableSpecialPrefix = store.get(enableSpecialPrefixAtom);
 			const bgLyricPrefix = store.get(bgLyricPrefixAtom);
@@ -393,14 +407,25 @@ export const ImportFromText = () => {
 					line.words = segmentWord(line.words[0], automaticSegmentationConfig);
 				}
 
-				if (
-					autoRomanizeKorean &&
-					!line.romanLyric.trim() &&
-					/[\uac00-\ud7af]/u.test(wholeLine)
-				) {
-					const wordRomanizations = romanizeKoreanSegments(
-						line.words.map((word) => word.word),
-					);
+				if (autoRomanizeEnabled && !line.romanLyric.trim()) {
+					let wordRomanizations: string[] | undefined;
+					if (
+						autoRomanizationLanguage === AutoRomanizationLanguage.Korean &&
+						/[\uac00-\ud7af]/u.test(wholeLine)
+					) {
+						wordRomanizations = romanizeKoreanSegments(
+							line.words.map((word) => word.word),
+						);
+					} else if (
+						autoRomanizationLanguage === AutoRomanizationLanguage.Japanese &&
+						/[\u3040-\u30ff]/u.test(wholeLine)
+					) {
+						wordRomanizations = predictLineRomanization(
+							line.words,
+							getDictionaryRomaji(wholeLine),
+						);
+					}
+					if (!wordRomanizations) continue;
 					for (const [index, word] of line.words.entries()) {
 						word.romanWord = wordRomanizations[index] ?? "";
 					}
@@ -670,15 +695,36 @@ export const ImportFromText = () => {
 							<Switch checked={autoSegment} onCheckedChange={setAutoSegment} />
 
 							<PrefText>
-								{t(
-									"textImportDialog.autoRomanizeKorean",
-									"Auto-romanize Korean (Revised Romanization)",
-								)}
+								{t("textImportDialog.autoRomanize", "Auto-romanize lyrics")}
 							</PrefText>
 							<Switch
-								checked={autoRomanizeKorean}
-								onCheckedChange={setAutoRomanizeKorean}
+								checked={autoRomanizeEnabled}
+								onCheckedChange={setAutoRomanizeEnabled}
 							/>
+
+							<PrefText>
+								{t(
+									"textImportDialog.romanizationLanguage",
+									"Romanization language",
+								)}
+							</PrefText>
+							<Select.Root
+								disabled={!autoRomanizeEnabled}
+								value={autoRomanizationLanguage}
+								onValueChange={(value) =>
+									setAutoRomanizationLanguage(value as AutoRomanizationLanguage)
+								}
+							>
+								<Select.Trigger />
+								<Select.Content>
+									<Select.Item value={AutoRomanizationLanguage.Korean}>
+										Korean — Revised Romanization
+									</Select.Item>
+									<Select.Item value={AutoRomanizationLanguage.Japanese}>
+										Japanese — Hepburn (Kana)
+									</Select.Item>
+								</Select.Content>
+							</Select.Root>
 
 							<PrefText>
 								{t(
