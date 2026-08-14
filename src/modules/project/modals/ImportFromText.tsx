@@ -14,7 +14,9 @@ import { atomWithStorage } from "jotai/utils";
 import { memo, type PropsWithChildren, useCallback } from "react";
 import { toast } from "react-toastify";
 import type { SegmentationConfig } from "$/modules/segmentation/types";
+import { romanizeKorean } from "$/modules/segmentation/utils/koreanRomanization.ts";
 import { segmentWord } from "$/modules/segmentation/utils/segmentation.ts";
+import { predictLineRomanization } from "$/modules/segmentation/utils/Transliteration/distributor";
 import {
 	confirmDialogAtom,
 	importFromTextDialogAtom,
@@ -68,6 +70,10 @@ const separateTranslationInputAtom = atomWithStorage(
 );
 const wordSeparatorAtom = atomWithStorage("importFromText.wordSeparator", "\\");
 const autoSegmentAtom = atomWithStorage("importFromText.autoSegment", true);
+const autoRomanizeKoreanAtom = atomWithStorage(
+	"importFromText.autoRomanizeKorean",
+	true,
+);
 const extractTrailingBgAtom = atomWithStorage(
 	"importFromText.extractTrailingBackgroundVocal",
 	true,
@@ -162,6 +168,9 @@ export const ImportFromText = () => {
 	);
 	const [wordSeparator, setWordSeparator] = useAtom(wordSeparatorAtom);
 	const [autoSegment, setAutoSegment] = useAtom(autoSegmentAtom);
+	const [autoRomanizeKorean, setAutoRomanizeKorean] = useAtom(
+		autoRomanizeKoreanAtom,
+	);
 	const [extractTrailingBg, setExtractTrailingBg] = useAtom(
 		extractTrailingBgAtom,
 	);
@@ -184,6 +193,7 @@ export const ImportFromText = () => {
 			const swapTransAndRoman = store.get(swapTransAndRomanAtom);
 			const wordSeparator = store.get(wordSeparatorAtom);
 			const autoSegment = store.get(autoSegmentAtom);
+			const autoRomanizeKorean = store.get(autoRomanizeKoreanAtom);
 			const extractTrailingBg = store.get(extractTrailingBgAtom);
 			const enableSpecialPrefix = store.get(enableSpecialPrefixAtom);
 			const bgLyricPrefix = store.get(bgLyricPrefixAtom);
@@ -382,6 +392,21 @@ export const ImportFromText = () => {
 					}));
 				} else if (autoSegment) {
 					line.words = segmentWord(line.words[0], automaticSegmentationConfig);
+				}
+
+				if (
+					autoRomanizeKorean &&
+					!line.romanLyric.trim() &&
+					/[\uac00-\ud7af]/u.test(wholeLine)
+				) {
+					const romanizedLine = romanizeKorean(wholeLine);
+					const wordRomanizations = predictLineRomanization(
+						line.words,
+						romanizedLine,
+					);
+					for (const [index, word] of line.words.entries()) {
+						word.romanWord = wordRomanizations[index] ?? "";
+					}
 				}
 			}
 
@@ -646,6 +671,17 @@ export const ImportFromText = () => {
 								)}
 							</PrefText>
 							<Switch checked={autoSegment} onCheckedChange={setAutoSegment} />
+
+							<PrefText>
+								{t(
+									"textImportDialog.autoRomanizeKorean",
+									"Auto-romanize Korean (Revised Romanization)",
+								)}
+							</PrefText>
+							<Switch
+								checked={autoRomanizeKorean}
+								onCheckedChange={setAutoRomanizeKorean}
+							/>
 
 							<PrefText>
 								{t(
