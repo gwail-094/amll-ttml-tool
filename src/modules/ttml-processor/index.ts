@@ -1,14 +1,14 @@
+import {
+	TranslationOutputMode,
+	translationOutputModeAtom,
+} from "$/modules/settings/states";
+import { globalStore } from "$/states/store.ts";
 import type {
 	LyricLine as AppLyricLine,
 	LyricWord as AppLyricWord,
 	TTMLLyric as AppTTMLLyric,
 	TTMLMetadata as AppTTMLMetadata,
 } from "$/types/ttml";
-import {
-	TranslationOutputMode,
-	translationOutputModeAtom,
-} from "$/modules/settings/states";
-import { globalStore } from "$/states/store.ts";
 import type {
 	AmllLyricLine,
 	AmllLyricResult,
@@ -75,6 +75,39 @@ function withDefaultGeneratorConfig(
 ): Partial<GeneratorConfig> {
 	return { ...getDefaultGeneratorConfig(), ...config };
 }
+
+/**
+ * The upstream TTML generator wraps background-vocal text in parentheses.
+ * Keep the x-bg structure, but remove only that generated outer pair.
+ */
+function removeBackgroundVocalParentheses(ttml: string): string {
+	return ttml.replace(
+		/(<span\b(?=[^>]*\bttm:role=(["'])x-bg\2)[^>]*>)([\s\S]*?)(<\/span>\s*<\/span>)/g,
+		(
+			fullMatch,
+			openingTag: string,
+			_quote: string,
+			content: string,
+			closingTags: string,
+		) => {
+			const withoutOpening = content.replace(/(<span\b[^>]*>)\(/, "$1");
+			if (withoutOpening === content || !withoutOpening.endsWith(")")) {
+				return fullMatch;
+			}
+
+			return `${openingTag}${withoutOpening.slice(0, -1)}${closingTags}`;
+		},
+	);
+}
+
+function postProcessGeneratedTTML(result: Result<string>): Result<string> {
+	if (!result.success) return result;
+
+	return {
+		success: true,
+		data: removeBackgroundVocalParentheses(result.data),
+	};
+}
 //#endregion
 
 //#region 底层 API
@@ -97,7 +130,9 @@ export function generateTTML(
 	result: TTMLResult,
 	config?: Partial<GeneratorConfig>,
 ): Result<string> {
-	return rawGenerateTtml(result, config) as Result<string>;
+	return postProcessGeneratedTTML(
+		rawGenerateTtml(result, config) as Result<string>,
+	);
 }
 //#endregion
 
@@ -266,11 +301,13 @@ export function amllToTTML(
 	config?: Partial<GeneratorConfig>,
 ): Result<string> {
 	const processedAmllResult = postProcessLyricLines(amllResult);
-	return rawAmllToTtml(
-		processedAmllResult,
-		options,
-		withDefaultGeneratorConfig(config),
-	) as Result<string>;
+	return postProcessGeneratedTTML(
+		rawAmllToTtml(
+			processedAmllResult,
+			options,
+			withDefaultGeneratorConfig(config),
+		) as Result<string>,
+	);
 }
 
 /**
