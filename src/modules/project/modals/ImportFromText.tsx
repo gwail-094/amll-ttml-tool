@@ -869,7 +869,7 @@ export const ImportFromText = () => {
 										Russian — English-friendly
 									</Select.Item>
 									<Select.Item value={AutoRomanizationLanguage.Arabic}>
-										Arabic — Simplified Latin
+										Arabic — Auto pronunciation
 									</Select.Item>
 								</Select.Content>
 							</Select.Root>

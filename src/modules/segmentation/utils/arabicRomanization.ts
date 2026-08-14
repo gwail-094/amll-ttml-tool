@@ -1,6 +1,92 @@
 const ARABIC_TEXT = /[\u0600-\u06ff]/u;
 const arabicWordSegmenter = new Intl.Segmenter("ar", { granularity: "word" });
 
+const ARABIC_MARKS = /[\u064b-\u065f\u0670\u06d6-\u06ed]/gu;
+
+function normalizeArabic(text: string): string {
+	return text
+		.replace(ARABIC_MARKS, "")
+		.replaceAll("ـ", "")
+		.replace(/[إأآٱ]/gu, "ا")
+		.replace(/ى/gu, "ي");
+}
+
+// Common Egyptian lyric forms need pronunciation data because ordinary Arabic
+// spelling usually omits the short vowels required for readable romanization.
+const EGYPTIAN_PRONUNCIATIONS: Record<string, string> = {
+	احلي: "ahla",
+	احنا: "ehna",
+	ايه: "eh",
+	انت: "enta",
+	انتي: "enti",
+	انا: "ana",
+	اوي: "awi",
+	بحبك: "bahebbak",
+	حاجة: "haga",
+	حبيبي: "habibi",
+	حبيبتي: "habibti",
+	حلو: "helw",
+	حلوة: "helwa",
+	خلاص: "khalas",
+	ده: "da",
+	دي: "di",
+	دلوقتي: "dilwa'ti",
+	الدنيا: "el-donya",
+	اللي: "elli",
+	الناس: "el-nas",
+	عشان: "ashan",
+	عايز: "ayiz",
+	عايزة: "ayza",
+	علي: "ala",
+	فيا: "fiyya",
+	فين: "feen",
+	قلب: "alb",
+	قلبي: "albi",
+	كل: "koll",
+	كده: "keda",
+	لا: "la",
+	لسه: "lissa",
+	ليه: "leh",
+	مع: "maa",
+	مش: "mish",
+	من: "min",
+	مين: "meen",
+	نرجسية: "nargisiyya",
+	هنا: "hina",
+	هناك: "hinak",
+	هو: "howwa",
+	هي: "heyya",
+	يوم: "yom",
+	يا: "ya",
+};
+
+const EGYPTIAN_MARKERS = new Set([
+	"احنا",
+	"ايه",
+	"اوي",
+	"حاجة",
+	"ده",
+	"دي",
+	"دلوقتي",
+	"اللي",
+	"عايز",
+	"عايزة",
+	"فيا",
+	"كده",
+	"لسه",
+	"ليه",
+	"مش",
+]);
+
+const COMMON_PRONUNCIATIONS: Record<string, string> = {
+	انا: "ana",
+	في: "fi",
+	لا: "la",
+	من: "min",
+	علي: "ala",
+	يا: "ya",
+};
+
 const ARABIC_TO_LATIN: Record<string, string> = {
 	ء: "'",
 	آ: "aa",
@@ -54,20 +140,30 @@ export function segmentArabicText(text: string): string[] {
 
 function romanizeArabic(text: string): string {
 	let result = "";
+	let previousConsonant = "";
 	for (const character of text) {
 		if (character === "ّ") {
-			const previous = result.match(/[a-z]+$/i)?.[0] ?? "";
-			result += previous.slice(-1);
+			result += previousConsonant;
 			continue;
 		}
-		result += ARABIC_TO_LATIN[character] ?? "";
+		const latin = ARABIC_TO_LATIN[character] ?? "";
+		result += latin;
+		if (latin && !/[aeiou]$/i.test(latin)) previousConsonant = latin;
 	}
 	return result;
 }
 
-/** Simplified Latin Arabic transliteration aligned to word segments. */
+/** Pronunciation-oriented Arabic romanization aligned to editable word boxes. */
 export function romanizeArabicSegments(segments: string[]): string[] {
-	return segments.map((segment) =>
-		ARABIC_TEXT.test(segment) ? romanizeArabic(segment) : "",
-	);
+	const normalized = segments.map(normalizeArabic);
+	const isEgyptian = normalized.some((word) => EGYPTIAN_MARKERS.has(word));
+
+	return segments.map((segment, index) => {
+		if (!ARABIC_TEXT.test(segment)) return "";
+		const word = normalized[index];
+		const pronunciation = isEgyptian
+			? EGYPTIAN_PRONUNCIATIONS[word]
+			: COMMON_PRONUNCIATIONS[word];
+		return pronunciation ?? romanizeArabic(segment);
+	});
 }
