@@ -106,7 +106,7 @@ const ImportFromTextEditor = memo(
 				<Flex direction="column" gap="1" style={{ flex: "1 1 0", minWidth: 0 }}>
 					{separateTranslation && (
 						<Text size="2" weight="medium">
-							{t("textImportDialog.originalLyrics", "原歌词")}
+							{t("textImportDialog.originalLyrics", "Original lyrics")}
 						</Text>
 					)}
 					<TextArea
@@ -122,7 +122,7 @@ const ImportFromTextEditor = memo(
 						style={{ flex: "1 1 0", minWidth: 0 }}
 					>
 						<Text size="2" weight="medium">
-							{t("textImportDialog.translationLyrics", "翻译歌词")}
+							{t("textImportDialog.translationLyrics", "Translation")}
 						</Text>
 						<TextArea
 							style={editorStyle}
@@ -535,7 +535,7 @@ export const ImportFromText = () => {
 							<PrefText>
 								{t(
 									"textImportDialog.separateTranslationInput",
-									"原文和翻译使用独立输入框",
+									"Separate original and translation boxes",
 								)}
 							</PrefText>
 							<Switch
@@ -578,7 +578,10 @@ export const ImportFromText = () => {
 							/>
 
 							<PrefText>
-								{t("textImportDialog.autoSegment", "自动分隔未预处理的歌词")}
+								{t(
+									"textImportDialog.autoSegment",
+									"Automatically segment unprepared lyrics",
+								)}
 							</PrefText>
 							<Switch checked={autoSegment} onCheckedChange={setAutoSegment} />
 
