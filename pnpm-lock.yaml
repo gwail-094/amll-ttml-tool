@@ -20,6 +20,9 @@ importers:
       '@applemusic-like-lyrics/react':
         specifier: 0.5.2
         version: 0.5.2(@pixi/app@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/filter-blur@7.4.3(@pixi/core@7.4.3))(@pixi/filter-bulge-pinch@5.1.1(@pixi/core@7.4.3))(@pixi/filter-color-matrix@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@dehoist/romanize-thai':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@radix-ui/themes':
         specifier: ^3.3.0
         version: 3.3.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -854,6 +857,9 @@ packages:
 
   '@croct/json@2.1.0':
     resolution: {integrity: sha512-UrWfjNQVlBxN+OVcFwHmkjARMW55MBN04E9KfGac8ac8z1QnFVuiOOFtMWXCk3UwsyRqhsNaFoYLZC+xxqsVjQ==}
+
+  '@dehoist/romanize-thai@1.0.0':
+    resolution: {integrity: sha512-6SqD4vyZ48otnypLXMh901CeQetoP5ptYOaIr58N6zDqjjoN0bHszMb5d/6AXJJQf8kIvbmSWBeuDrbAWLajPQ==}
 
   '@emnapi/core@1.11.1':
     resolution: {integrity: sha512-RSvbQmHzdKzNsLYa/wHrbc3KN4sYLKAdPZxqiM2HATqv/SBk2/ENSHpvXGaLOMcsAyz0poEGqkmmKYG3OWiJEQ==}
@@ -5211,6 +5217,8 @@ snapshots:
       '@croct/json': 2.1.0
 
   '@croct/json@2.1.0': {}
+
+  '@dehoist/romanize-thai@1.0.0': {}
 
   '@emnapi/core@1.11.1':
     dependencies:

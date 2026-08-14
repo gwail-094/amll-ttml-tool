@@ -20,6 +20,10 @@ import { romanizeJapaneseWithKanjiSegments } from "$/modules/segmentation/utils/
 import { romanizeKoreanSegments } from "$/modules/segmentation/utils/koreanRomanization.ts";
 import { segmentWord } from "$/modules/segmentation/utils/segmentation.ts";
 import {
+	romanizeThaiSegments,
+	segmentThaiText,
+} from "$/modules/segmentation/utils/thaiRomanization.ts";
+import {
 	confirmDialogAtom,
 	importFromTextDialogAtom,
 } from "$/states/dialogs.ts";
@@ -80,6 +84,7 @@ enum AutoRomanizationLanguage {
 	Korean = "korean",
 	Japanese = "japanese",
 	Chinese = "chinese",
+	Thai = "thai",
 }
 const autoRomanizationLanguageAtom = atomWithStorage(
 	"importFromText.autoRomanizationLanguage",
@@ -411,7 +416,20 @@ export const ImportFromText = () => {
 						word,
 					}));
 				} else if (autoSegment) {
-					line.words = segmentWord(line.words[0], automaticSegmentationConfig);
+					if (
+						autoRomanizationLanguage === AutoRomanizationLanguage.Thai &&
+						/[\u0e00-\u0e7f]/u.test(wholeLine)
+					) {
+						line.words = segmentThaiText(wholeLine).map((word) => ({
+							...newLyricWord(),
+							word,
+						}));
+					} else {
+						line.words = segmentWord(
+							line.words[0],
+							automaticSegmentationConfig,
+						);
+					}
 				}
 
 				if (autoRomanizeEnabled && !line.romanLyric.trim()) {
@@ -436,6 +454,13 @@ export const ImportFromText = () => {
 						/[\u3400-\u4dbf\u4e00-\u9fff]/u.test(wholeLine)
 					) {
 						wordRomanizations = romanizeChineseSegments(
+							line.words.map((word) => word.word),
+						);
+					} else if (
+						autoRomanizationLanguage === AutoRomanizationLanguage.Thai &&
+						/[\u0e00-\u0e7f]/u.test(wholeLine)
+					) {
+						wordRomanizations = romanizeThaiSegments(
 							line.words.map((word) => word.word),
 						);
 					}
@@ -798,6 +823,9 @@ export const ImportFromText = () => {
 									</Select.Item>
 									<Select.Item value={AutoRomanizationLanguage.Chinese}>
 										Chinese — Hanyu Pinyin
+									</Select.Item>
+									<Select.Item value={AutoRomanizationLanguage.Thai}>
+										Thai — RTGS
 									</Select.Item>
 								</Select.Content>
 							</Select.Root>
