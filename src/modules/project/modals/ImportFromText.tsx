@@ -15,6 +15,7 @@ import { atomWithStorage } from "jotai/utils";
 import { memo, type PropsWithChildren, useCallback, useState } from "react";
 import { toast } from "react-toastify";
 import type { SegmentationConfig } from "$/modules/segmentation/types";
+import { romanizeChineseSegments } from "$/modules/segmentation/utils/chineseRomanization.ts";
 import { romanizeJapaneseWithKanjiSegments } from "$/modules/segmentation/utils/japaneseKanjiRomanization.ts";
 import { romanizeKoreanSegments } from "$/modules/segmentation/utils/koreanRomanization.ts";
 import { segmentWord } from "$/modules/segmentation/utils/segmentation.ts";
@@ -78,6 +79,7 @@ const autoRomanizeEnabledAtom = atomWithStorage(
 enum AutoRomanizationLanguage {
 	Korean = "korean",
 	Japanese = "japanese",
+	Chinese = "chinese",
 }
 const autoRomanizationLanguageAtom = atomWithStorage(
 	"importFromText.autoRomanizationLanguage",
@@ -429,8 +431,25 @@ export const ImportFromText = () => {
 							line.words.map((word) => word.word),
 							setImportProgress,
 						);
+					} else if (
+						autoRomanizationLanguage === AutoRomanizationLanguage.Chinese &&
+						/[\u3400-\u4dbf\u4e00-\u9fff]/u.test(wholeLine)
+					) {
+						wordRomanizations = romanizeChineseSegments(
+							line.words.map((word) => word.word),
+						);
 					}
 					if (!wordRomanizations) continue;
+					const firstRomanizedWord = wordRomanizations.findIndex(
+						(romanization) => romanization.length > 0,
+					);
+					if (firstRomanizedWord >= 0) {
+						wordRomanizations[firstRomanizedWord] =
+							wordRomanizations[firstRomanizedWord]
+								.charAt(0)
+								.toLocaleUpperCase() +
+							wordRomanizations[firstRomanizedWord].slice(1);
+					}
 					for (const [index, word] of line.words.entries()) {
 						word.romanWord = wordRomanizations[index] ?? "";
 					}
@@ -776,6 +795,9 @@ export const ImportFromText = () => {
 									</Select.Item>
 									<Select.Item value={AutoRomanizationLanguage.Japanese}>
 										Japanese — Hepburn (Kana + Kanji)
+									</Select.Item>
+									<Select.Item value={AutoRomanizationLanguage.Chinese}>
+										Chinese — Hanyu Pinyin
 									</Select.Item>
 								</Select.Content>
 							</Select.Root>
