@@ -14,10 +14,9 @@ import { atomWithStorage } from "jotai/utils";
 import { memo, type PropsWithChildren, useCallback } from "react";
 import { toast } from "react-toastify";
 import type { SegmentationConfig } from "$/modules/segmentation/types";
+import { romanizeJapaneseSegments } from "$/modules/segmentation/utils/japaneseRomanization.ts";
 import { romanizeKoreanSegments } from "$/modules/segmentation/utils/koreanRomanization.ts";
 import { segmentWord } from "$/modules/segmentation/utils/segmentation.ts";
-import { predictLineRomanization } from "$/modules/segmentation/utils/Transliteration/distributor";
-import { getDictionaryRomaji } from "$/modules/segmentation/utils/Transliteration/TransliterationUtils";
 import {
 	confirmDialogAtom,
 	importFromTextDialogAtom,
@@ -237,17 +236,26 @@ export const ImportFromText = () => {
 					}
 				}
 
-				let trailingBgText = "";
+				const splitParentheticalBg = (value: string) => {
+					const trailing = value.match(/^(.*?)\s*[(（]([^()（）]+)[)）]\s*$/);
+					if (trailing) {
+						return { main: trailing[1].trimEnd(), bg: trailing[2].trim() };
+					}
+					const leading = value.match(/^\s*[(（]([^()（）]+)[)）]\s*(.*?)$/);
+					if (leading) {
+						return { main: leading[2].trimStart(), bg: leading[1].trim() };
+					}
+					return { main: value, bg: "" };
+				};
+
+				let backgroundText = "";
 				if (extractTrailingBg && !isBG) {
-					const trailingBgMatch = finalOrig.match(
-						/^(.*?)\s*[(（]([^()（）]+)[)）]\s*$/,
-					);
-					if (trailingBgMatch) {
-						const mainText = trailingBgMatch[1].trimEnd();
-						const bgText = trailingBgMatch[2].trim();
+					const { main: mainText, bg: bgText } =
+						splitParentheticalBg(finalOrig);
+					if (bgText) {
 						if (mainText && bgText) {
 							finalOrig = mainText;
-							trailingBgText = bgText;
+							backgroundText = bgText;
 						} else if (bgText) {
 							finalOrig = bgText;
 							isBG = true;
@@ -259,15 +267,9 @@ export const ImportFromText = () => {
 				let bgTrans = "";
 				let mainRoman = roman;
 				let bgRoman = "";
-				if (trailingBgText) {
-					const splitTrailingSub = (value: string) => {
-						const match = value.match(/^(.*?)\s*[(（]([^()（）]+)[)）]\s*$/);
-						return match
-							? { main: match[1].trimEnd(), bg: match[2].trim() }
-							: { main: value, bg: "" };
-					};
-					({ main: mainTrans, bg: bgTrans } = splitTrailingSub(trans));
-					({ main: mainRoman, bg: bgRoman } = splitTrailingSub(roman));
+				if (backgroundText) {
+					({ main: mainTrans, bg: bgTrans } = splitParentheticalBg(trans));
+					({ main: mainRoman, bg: bgRoman } = splitParentheticalBg(roman));
 				}
 
 				const line: LyricLine = {
@@ -285,13 +287,13 @@ export const ImportFromText = () => {
 				};
 
 				result.push(line);
-				if (trailingBgText) {
+				if (backgroundText) {
 					result.push({
 						...newLyricLine(),
 						words: [
 							{
 								...newLyricWord(),
-								word: trailingBgText,
+								word: backgroundText,
 							},
 						],
 						translatedLyric: bgTrans,
@@ -420,9 +422,8 @@ export const ImportFromText = () => {
 						autoRomanizationLanguage === AutoRomanizationLanguage.Japanese &&
 						/[\u3040-\u30ff]/u.test(wholeLine)
 					) {
-						wordRomanizations = predictLineRomanization(
-							line.words,
-							getDictionaryRomaji(wholeLine),
+						wordRomanizations = romanizeJapaneseSegments(
+							line.words.map((word) => word.word),
 						);
 					}
 					if (!wordRomanizations) continue;
@@ -729,7 +730,7 @@ export const ImportFromText = () => {
 							<PrefText>
 								{t(
 									"textImportDialog.extractTrailingBackgroundVocal",
-									"Extract trailing parentheses as background vocals",
+									"Extract parenthesized background vocals",
 								)}
 							</PrefText>
 							<Switch
