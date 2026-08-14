@@ -62,6 +62,10 @@ const swapTransAndRomanAtom = atomWithStorage(
 	"importFromText.swapTransAndRoman",
 	false,
 );
+const separateTranslationInputAtom = atomWithStorage(
+	"importFromText.separateTranslationInput",
+	false,
+);
 const wordSeparatorAtom = atomWithStorage("importFromText.wordSeparator", "\\");
 const autoSegmentAtom = atomWithStorage("importFromText.autoSegment", true);
 const enableSpecialPrefixAtom = atomWithStorage(
@@ -82,21 +86,55 @@ const emptyBeatSymbolAtom = atomWithStorage(
 	"^",
 );
 const textValueAtom = atom("");
+const translationTextValueAtom = atom("");
 
-const ImportFromTextEditor = memo(() => {
-	const [value, setValue] = useAtom(textValueAtom);
-	return (
-		<TextArea
-			style={{
-				height: "calc(80vh - 5em)",
-				flex: "1 1 auto",
-				fontFamily: "var(--code-font-family)",
-			}}
-			value={value}
-			onChange={(evt) => setValue(evt.currentTarget.value)}
-		/>
-	);
-});
+const ImportFromTextEditor = memo(
+	({ separateTranslation }: { separateTranslation: boolean }) => {
+		const [value, setValue] = useAtom(textValueAtom);
+		const [translationValue, setTranslationValue] = useAtom(
+			translationTextValueAtom,
+		);
+		const { t } = useTranslation();
+		const editorStyle = {
+			height: "calc(80vh - 7em)",
+			flex: "1 1 auto",
+			fontFamily: "var(--code-font-family)",
+		};
+
+		return (
+			<Flex gap="3" style={{ flex: "1 1 auto", minWidth: 0 }}>
+				<Flex direction="column" gap="1" style={{ flex: "1 1 0", minWidth: 0 }}>
+					{separateTranslation && (
+						<Text size="2" weight="medium">
+							{t("textImportDialog.originalLyrics", "原歌词")}
+						</Text>
+					)}
+					<TextArea
+						style={editorStyle}
+						value={value}
+						onChange={(evt) => setValue(evt.currentTarget.value)}
+					/>
+				</Flex>
+				{separateTranslation && (
+					<Flex
+						direction="column"
+						gap="1"
+						style={{ flex: "1 1 0", minWidth: 0 }}
+					>
+						<Text size="2" weight="medium">
+							{t("textImportDialog.translationLyrics", "翻译歌词")}
+						</Text>
+						<TextArea
+							style={editorStyle}
+							value={translationValue}
+							onChange={(evt) => setTranslationValue(evt.currentTarget.value)}
+						/>
+					</Flex>
+				)}
+			</Flex>
+		);
+	},
+);
 
 export const ImportFromText = () => {
 	const setConfirmDialog = useSetAtom(confirmDialogAtom);
@@ -115,6 +153,9 @@ export const ImportFromText = () => {
 	const [swapTransAndRoman, setSwapTransAndRoman] = useAtom(
 		swapTransAndRomanAtom,
 	);
+	const [separateTranslationInput, setSeparateTranslationInput] = useAtom(
+		separateTranslationInputAtom,
+	);
 	const [wordSeparator, setWordSeparator] = useAtom(wordSeparatorAtom);
 	const [autoSegment, setAutoSegment] = useAtom(autoSegmentAtom);
 	const [enableSpecialPrefix, setEnableSpecialPrefix] = useAtom(
@@ -128,9 +169,10 @@ export const ImportFromText = () => {
 	const store = useStore();
 
 	const onImport = useCallback(
-		(text: string) => {
+		(text: string, lineSeparatorModeOverride?: LineSeparatorMode) => {
 			const importMode = store.get(importModeAtom);
-			const lineSeparatorMode = store.get(lineSeparatorModeAtom);
+			const lineSeparatorMode =
+				lineSeparatorModeOverride ?? store.get(lineSeparatorModeAtom);
 			const lineSeparator = store.get(lineSeparatorAtom);
 			const swapTransAndRoman = store.get(swapTransAndRomanAtom);
 			const wordSeparator = store.get(wordSeparatorAtom);
@@ -319,7 +361,47 @@ export const ImportFromText = () => {
 							onClick={() => {
 								try {
 									const importAction = () => {
-										onImport(store.get(textValueAtom));
+										let textToImport = store.get(textValueAtom);
+										if (
+											store.get(separateTranslationInputAtom) &&
+											store.get(importModeAtom) === ImportMode.LyricTrans
+										) {
+											const splitLines = (value: string) => {
+												const lines = value.replace(/\r\n?/g, "\n").split("\n");
+												while (lines.length > 1 && lines.at(-1) === "")
+													lines.pop();
+												return lines;
+											};
+											const originalLines = splitLines(textToImport);
+											const translationLines = splitLines(
+												store.get(translationTextValueAtom),
+											);
+
+											if (originalLines.length !== translationLines.length) {
+												error(
+													t(
+														"textImportDialog.lineCountMismatch",
+														`Original and translation must have the same number of lines (${originalLines.length} original, ${translationLines.length} translated).`,
+													),
+												);
+												return;
+											}
+
+											textToImport = originalLines
+												.flatMap((line, index) => [
+													line,
+													translationLines[index],
+												])
+												.join("\n");
+										}
+
+										onImport(
+											textToImport,
+											store.get(separateTranslationInputAtom) &&
+												store.get(importModeAtom) === ImportMode.LyricTrans
+												? LineSeparatorMode.Interleaved
+												: undefined,
+										);
 										setImportFromTextDialog(false);
 									};
 									if (isDirty)
@@ -338,7 +420,9 @@ export const ImportFromText = () => {
 									else importAction();
 								} catch (e) {
 									error(
-										"导入纯文本歌词失败，请检查输入的文本是否正确，或者导入设置是否正确",
+										e instanceof Error
+											? e.message
+											: "导入纯文本歌词失败，请检查输入的文本是否正确，或者导入设置是否正确",
 									);
 									projectLogger.error(e);
 								}
@@ -367,7 +451,11 @@ export const ImportFromText = () => {
 							</Inset>
 						</Card> */}
 
-						<ImportFromTextEditor />
+						<ImportFromTextEditor
+							separateTranslation={
+								separateTranslationInput && importMode === ImportMode.LyricTrans
+							}
+						/>
 						<Grid
 							columns="2"
 							gapY="2"
@@ -420,7 +508,11 @@ export const ImportFromText = () => {
 								)}
 							</PrefText>
 							<Select.Root
-								disabled={importMode === ImportMode.Lyric}
+								disabled={
+									importMode === ImportMode.Lyric ||
+									(separateTranslationInput &&
+										importMode === ImportMode.LyricTrans)
+								}
 								value={lineSeparatorMode}
 								onValueChange={(v) =>
 									setLineSeparatorMode(v as LineSeparatorMode)
@@ -441,11 +533,28 @@ export const ImportFromText = () => {
 							</Select.Root>
 
 							<PrefText>
+								{t(
+									"textImportDialog.separateTranslationInput",
+									"原文和翻译使用独立输入框",
+								)}
+							</PrefText>
+							<Switch
+								disabled={importMode !== ImportMode.LyricTrans}
+								checked={
+									separateTranslationInput &&
+									importMode === ImportMode.LyricTrans
+								}
+								onCheckedChange={setSeparateTranslationInput}
+							/>
+
+							<PrefText>
 								{t("textImportDialog.separator", "歌词行分隔符")}
 							</PrefText>
 							<TextField.Root
 								disabled={
 									importMode === ImportMode.Lyric ||
+									(separateTranslationInput &&
+										importMode === ImportMode.LyricTrans) ||
 									lineSeparatorMode !== LineSeparatorMode.SameLineSeparator
 								}
 								value={lineSeparator}
