@@ -232,6 +232,21 @@ export const ImportFromText = () => {
 					}
 				}
 
+				let mainTrans = trans;
+				let bgTrans = "";
+				let mainRoman = roman;
+				let bgRoman = "";
+				if (trailingBgText) {
+					const splitTrailingSub = (value: string) => {
+						const match = value.match(/^(.*?)\s*[(（]([^()（）]+)[)）]\s*$/);
+						return match
+							? { main: match[1].trimEnd(), bg: match[2].trim() }
+							: { main: value, bg: "" };
+					};
+					({ main: mainTrans, bg: bgTrans } = splitTrailingSub(trans));
+					({ main: mainRoman, bg: bgRoman } = splitTrailingSub(roman));
+				}
+
 				const line: LyricLine = {
 					...newLyricLine(),
 					words: [
@@ -240,8 +255,8 @@ export const ImportFromText = () => {
 							word: finalOrig,
 						},
 					],
-					translatedLyric: trans,
-					romanLyric: roman,
+					translatedLyric: mainTrans,
+					romanLyric: mainRoman,
 					isBG,
 					isDuet,
 				};
@@ -256,6 +271,8 @@ export const ImportFromText = () => {
 								word: trailingBgText,
 							},
 						],
+						translatedLyric: bgTrans,
+						romanLyric: bgRoman,
 						isBG: true,
 						isDuet,
 					});
@@ -281,6 +298,16 @@ export const ImportFromText = () => {
 					wordSeparator.length > 0
 						? value.split(wordSeparator).join("")
 						: value;
+				const addLineWithSubs = (
+					orig: string,
+					subText1 = "",
+					subText2 = "",
+				) => {
+					const values: Record<string, string> = {};
+					if (sub1) values[sub1] = cleanSubLyric(subText1);
+					if (sub2) values[sub2] = cleanSubLyric(subText2);
+					addLine(orig, values.translatedLyric, values.romanLyric);
+				};
 
 				switch (lineSeparatorMode) {
 					case LineSeparatorMode.Interleaved: {
@@ -292,9 +319,7 @@ export const ImportFromText = () => {
 							let ii = 0;
 							const subText1 = sub1 ? lines[i + ++ii] : "";
 							const subText2 = sub2 ? lines[i + ++ii] : "";
-							const line = addLine(orig);
-							if (sub1) line[sub1] = cleanSubLyric(subText1);
-							if (sub2) line[sub2] = cleanSubLyric(subText2);
+							addLineWithSubs(orig, subText1, subText2);
 						}
 						return;
 					}
@@ -304,9 +329,7 @@ export const ImportFromText = () => {
 							const orig = parts[0];
 							const subText1 = sub1 ? parts[1] : "";
 							const subText2 = sub2 ? parts[2] : "";
-							const line = addLine(orig);
-							if (sub1) line[sub1] = cleanSubLyric(subText1);
-							if (sub2) line[sub2] = cleanSubLyric(subText2);
+							addLineWithSubs(orig, subText1, subText2);
 						}
 						return;
 					}
