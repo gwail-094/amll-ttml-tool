@@ -191,6 +191,11 @@ export const ImportFromText = () => {
 				sub1?: KeysMatching<LyricLine, string>,
 				sub2?: KeysMatching<LyricLine, string>,
 			) {
+				const cleanSubLyric = (value = "") =>
+					wordSeparator.length > 0
+						? value.split(wordSeparator).join("")
+						: value;
+
 				switch (lineSeparatorMode) {
 					case LineSeparatorMode.Interleaved: {
 						let skip = 1;
@@ -202,8 +207,8 @@ export const ImportFromText = () => {
 							const subText1 = sub1 ? lines[i + ++ii] : "";
 							const subText2 = sub2 ? lines[i + ++ii] : "";
 							const line = addLine(orig);
-							if (sub1) line[sub1] = subText1;
-							if (sub2) line[sub2] = subText2;
+							if (sub1) line[sub1] = cleanSubLyric(subText1);
+							if (sub2) line[sub2] = cleanSubLyric(subText2);
 						}
 						return;
 					}
@@ -214,8 +219,8 @@ export const ImportFromText = () => {
 							const subText1 = sub1 ? parts[1] : "";
 							const subText2 = sub2 ? parts[2] : "";
 							const line = addLine(orig);
-							if (sub1) line[sub1] = subText1;
-							if (sub2) line[sub2] = subText2;
+							if (sub1) line[sub1] = cleanSubLyric(subText1);
+							if (sub2) line[sub2] = cleanSubLyric(subText2);
 						}
 						return;
 					}
