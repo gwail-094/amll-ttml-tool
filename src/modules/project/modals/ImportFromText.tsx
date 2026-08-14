@@ -13,6 +13,8 @@ import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { memo, type PropsWithChildren, useCallback } from "react";
 import { toast } from "react-toastify";
+import type { SegmentationConfig } from "$/modules/segmentation/types";
+import { segmentWord } from "$/modules/segmentation/utils/segmentation.ts";
 import {
 	confirmDialogAtom,
 	importFromTextDialogAtom,
@@ -61,6 +63,7 @@ const swapTransAndRomanAtom = atomWithStorage(
 	false,
 );
 const wordSeparatorAtom = atomWithStorage("importFromText.wordSeparator", "\\");
+const autoSegmentAtom = atomWithStorage("importFromText.autoSegment", true);
 const enableSpecialPrefixAtom = atomWithStorage(
 	"importFromText.enableSpecialPrefix",
 	false,
@@ -113,6 +116,7 @@ export const ImportFromText = () => {
 		swapTransAndRomanAtom,
 	);
 	const [wordSeparator, setWordSeparator] = useAtom(wordSeparatorAtom);
+	const [autoSegment, setAutoSegment] = useAtom(autoSegmentAtom);
 	const [enableSpecialPrefix, setEnableSpecialPrefix] = useAtom(
 		enableSpecialPrefixAtom,
 	);
@@ -130,6 +134,7 @@ export const ImportFromText = () => {
 			const lineSeparator = store.get(lineSeparatorAtom);
 			const swapTransAndRoman = store.get(swapTransAndRomanAtom);
 			const wordSeparator = store.get(wordSeparatorAtom);
+			const autoSegment = store.get(autoSegmentAtom);
 			const enableSpecialPrefix = store.get(enableSpecialPrefixAtom);
 			const bgLyricPrefix = store.get(bgLyricPrefixAtom);
 			const duetLyricPrefix = store.get(duetLyricPrefixAtom);
@@ -251,13 +256,28 @@ export const ImportFromText = () => {
 				}
 			}
 
-			if (wordSeparator.length > 0) {
-				for (const line of result) {
-					const wholeLine = line.words.map((word) => word.word).join("");
+			const automaticSegmentationConfig: SegmentationConfig = {
+				splitCJK: true,
+				splitEnglish: false,
+				punctuationWeight: 0.2,
+				punctuationMode: "merge",
+				removeEmptySegments: false,
+				ignoreList: new Set(),
+				customRules: new Map(),
+			};
+
+			for (const line of result) {
+				const wholeLine = line.words.map((word) => word.word).join("");
+				const hasExplicitSeparators =
+					wordSeparator.length > 0 && wholeLine.includes(wordSeparator);
+
+				if (hasExplicitSeparators) {
 					line.words = wholeLine.split(wordSeparator).map((word) => ({
 						...newLyricWord(),
 						word,
 					}));
+				} else if (autoSegment) {
+					line.words = segmentWord(line.words[0], automaticSegmentationConfig);
 				}
 			}
 
@@ -447,6 +467,11 @@ export const ImportFromText = () => {
 								value={wordSeparator}
 								onChange={(evt) => setWordSeparator(evt.currentTarget.value)}
 							/>
+
+							<PrefText>
+								{t("textImportDialog.autoSegment", "自动分隔未预处理的歌词")}
+							</PrefText>
+							<Switch checked={autoSegment} onCheckedChange={setAutoSegment} />
 
 							<PrefText>
 								{t("textImportDialog.enableSpecialPrefix", "启用特殊前缀")}

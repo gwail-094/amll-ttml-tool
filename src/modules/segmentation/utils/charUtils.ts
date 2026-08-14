@@ -1,8 +1,7 @@
 import { CharType } from "../types";
 
 export const RE_WHITESPACE = /[\s\n\t]/;
-export const RE_LATIN =
-	/[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}\p{M}']/u;
+export const RE_WORD_LETTER = /[\p{L}\p{M}']/u;
 export const RE_NUMERIC = /[0-9]/;
 
 /**
@@ -15,7 +14,6 @@ export function getCharType(c: string): CharType {
 	const code = c.charCodeAt(0);
 
 	if (RE_WHITESPACE.test(c)) return CharType.Whitespace;
-	if (RE_LATIN.test(c)) return CharType.Latin;
 	if (RE_NUMERIC.test(c)) return CharType.Numeric;
 
 	if (
@@ -26,6 +24,7 @@ export function getCharType(c: string): CharType {
 	) {
 		return CharType.Cjk;
 	}
+	if (RE_WORD_LETTER.test(c)) return CharType.Latin;
 	// 标点符号和emoji等
 	return CharType.Other;
 }
