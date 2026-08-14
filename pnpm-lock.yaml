@@ -56,6 +56,9 @@ importers:
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
+      cyrillic-to-translit-js:
+        specifier: ^3.2.1
+        version: 3.2.1
       framer-motion:
         specifier: ^12.42.2
         version: 12.42.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -2778,6 +2781,9 @@ packages:
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
+  cyrillic-to-translit-js@3.2.1:
+    resolution: {integrity: sha512-HFO+fx4t9J6bfeV5DUKmkzav15ktg+6LDjODj6+CRzrFil8YuzR6wRQiDI7OxwY5q4alCEP+sNEjhdQ65TIDzw==}
+
   data-view-buffer@1.0.2:
     resolution: {integrity: sha512-EmKO5V3OLXh1rtK2wgXRansaK1/mtVdTUEiEI0W8RkvgT05kfxaH29PliLnpLP73yYO6142Q72QNa8Wx/A5CqQ==}
     engines: {node: '>= 0.4'}
@@ -3503,6 +3509,9 @@ packages:
 
   lodash.debounce@4.0.8:
     resolution: {integrity: sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow==}
+
+  lodash.invert@4.3.0:
+    resolution: {integrity: sha512-3CJmOxN5y47rd+g5XjdZNcq2SorJkvlSqBwPomT094p6LZ4p7b5bUoRzYYMjwsTGWTW77z/dFZlCzeVQxBrZVg==}
 
   lodash.sortby@4.7.0:
     resolution: {integrity: sha512-HDWXG8isMntAyRF5vZ7xKuEvOhT4AhlRt/3czTSjvGUxjYCBVRQY48ViDHyfYz9VIoBkW4TMGQNapx+l3RUwdA==}
@@ -6938,6 +6947,10 @@ snapshots:
 
   csstype@3.2.3: {}
 
+  cyrillic-to-translit-js@3.2.1:
+    dependencies:
+      lodash.invert: 4.3.0
+
   data-view-buffer@1.0.2:
     dependencies:
       call-bound: 1.0.4
@@ -7664,6 +7677,8 @@ snapshots:
       lightningcss-win32-x64-msvc: 1.32.0
 
   lodash.debounce@4.0.8: {}
+
+  lodash.invert@4.3.0: {}
 
   lodash.sortby@4.7.0: {}
 

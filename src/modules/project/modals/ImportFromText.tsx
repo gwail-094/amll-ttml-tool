@@ -18,6 +18,10 @@ import type { SegmentationConfig } from "$/modules/segmentation/types";
 import { romanizeChineseSegments } from "$/modules/segmentation/utils/chineseRomanization.ts";
 import { romanizeJapaneseWithKanjiSegments } from "$/modules/segmentation/utils/japaneseKanjiRomanization.ts";
 import { romanizeKoreanSegments } from "$/modules/segmentation/utils/koreanRomanization.ts";
+import {
+	romanizeRussianSegments,
+	segmentRussianText,
+} from "$/modules/segmentation/utils/russianRomanization.ts";
 import { segmentWord } from "$/modules/segmentation/utils/segmentation.ts";
 import {
 	romanizeThaiSegments,
@@ -85,6 +89,7 @@ enum AutoRomanizationLanguage {
 	Japanese = "japanese",
 	Chinese = "chinese",
 	Thai = "thai",
+	Russian = "russian",
 }
 const autoRomanizationLanguageAtom = atomWithStorage(
 	"importFromText.autoRomanizationLanguage",
@@ -424,6 +429,14 @@ export const ImportFromText = () => {
 							...newLyricWord(),
 							word,
 						}));
+					} else if (
+						autoRomanizationLanguage === AutoRomanizationLanguage.Russian &&
+						/[\u0400-\u04ff]/u.test(wholeLine)
+					) {
+						line.words = segmentRussianText(wholeLine).map((word) => ({
+							...newLyricWord(),
+							word,
+						}));
 					} else {
 						line.words = segmentWord(
 							line.words[0],
@@ -461,6 +474,13 @@ export const ImportFromText = () => {
 						/[\u0e00-\u0e7f]/u.test(wholeLine)
 					) {
 						wordRomanizations = romanizeThaiSegments(
+							line.words.map((word) => word.word),
+						);
+					} else if (
+						autoRomanizationLanguage === AutoRomanizationLanguage.Russian &&
+						/[\u0400-\u04ff]/u.test(wholeLine)
+					) {
+						wordRomanizations = romanizeRussianSegments(
 							line.words.map((word) => word.word),
 						);
 					}
@@ -826,6 +846,9 @@ export const ImportFromText = () => {
 									</Select.Item>
 									<Select.Item value={AutoRomanizationLanguage.Thai}>
 										Thai — RTGS
+									</Select.Item>
+									<Select.Item value={AutoRomanizationLanguage.Russian}>
+										Russian — English-friendly
 									</Select.Item>
 								</Select.Content>
 							</Select.Root>
