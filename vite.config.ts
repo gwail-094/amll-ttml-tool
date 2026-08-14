@@ -19,7 +19,7 @@ const forceBrowserGlobal = (
 	const factoryStart = source.indexOf("(function(){");
 	if (factoryStart < 0) return source;
 	const factory = source.slice(factoryStart).trim().replace(/;$/, "");
-	return `(function(factory){window.${globalName}=factory()})${factory}`;
+	return `(function(factory){globalThis.${globalName}=factory()})${factory}`;
 };
 
 const plugins: PluginOption = [

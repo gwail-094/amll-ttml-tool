@@ -157,6 +157,7 @@ const ImportFromTextEditor = memo(
 
 export const ImportFromText = () => {
 	const [isImporting, setIsImporting] = useState(false);
+	const [importProgress, setImportProgress] = useState(0);
 	const setConfirmDialog = useSetAtom(confirmDialogAtom);
 	const isDirty = useAtomValue(isDirtyAtom);
 	const { t } = useTranslation();
@@ -426,6 +427,7 @@ export const ImportFromText = () => {
 					) {
 						wordRomanizations = await romanizeJapaneseWithKanjiSegments(
 							line.words.map((word) => word.word),
+							setImportProgress,
 						);
 					}
 					if (!wordRomanizations) continue;
@@ -510,6 +512,7 @@ export const ImportFromText = () => {
 											}
 
 											setIsImporting(true);
+											setImportProgress(1);
 											// Let React paint the loading indicator before the Japanese
 											// dictionary performs its one-time initialization work.
 											await new Promise<void>((resolve) =>
@@ -580,7 +583,13 @@ export const ImportFromText = () => {
 													"Processing lyrics…",
 												)}
 									</Text>
-									<Progress value={null} aria-label="Import progress" />
+									<Text size="2" weight="bold" align="center">
+										{importProgress}%
+									</Text>
+									<Progress
+										value={importProgress}
+										aria-label={`Import progress: ${importProgress}%`}
+									/>
 								</Flex>
 							)}
 						</Flex>
