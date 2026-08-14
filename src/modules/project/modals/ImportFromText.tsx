@@ -14,7 +14,7 @@ import { atomWithStorage } from "jotai/utils";
 import { memo, type PropsWithChildren, useCallback } from "react";
 import { toast } from "react-toastify";
 import type { SegmentationConfig } from "$/modules/segmentation/types";
-import { romanizeJapaneseSegments } from "$/modules/segmentation/utils/japaneseRomanization.ts";
+import { romanizeJapaneseWithKanjiSegments } from "$/modules/segmentation/utils/japaneseKanjiRomanization.ts";
 import { romanizeKoreanSegments } from "$/modules/segmentation/utils/koreanRomanization.ts";
 import { segmentWord } from "$/modules/segmentation/utils/segmentation.ts";
 import {
@@ -196,7 +196,7 @@ export const ImportFromText = () => {
 	const store = useStore();
 
 	const onImport = useCallback(
-		(text: string, lineSeparatorModeOverride?: LineSeparatorMode) => {
+		async (text: string, lineSeparatorModeOverride?: LineSeparatorMode) => {
 			const importMode = store.get(importModeAtom);
 			const lineSeparatorMode =
 				lineSeparatorModeOverride ?? store.get(lineSeparatorModeAtom);
@@ -420,9 +420,9 @@ export const ImportFromText = () => {
 						);
 					} else if (
 						autoRomanizationLanguage === AutoRomanizationLanguage.Japanese &&
-						/[\u3040-\u30ff]/u.test(wholeLine)
+						/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff々〆ヵヶ]/u.test(wholeLine)
 					) {
-						wordRomanizations = romanizeJapaneseSegments(
+						wordRomanizations = await romanizeJapaneseWithKanjiSegments(
 							line.words.map((word) => word.word),
 						);
 					}
@@ -505,14 +505,13 @@ export const ImportFromText = () => {
 												.join("\n");
 										}
 
-										onImport(
+										void onImport(
 											textToImport,
 											store.get(separateTranslationInputAtom) &&
 												store.get(importModeAtom) === ImportMode.LyricTrans
 												? LineSeparatorMode.Interleaved
 												: undefined,
-										);
-										setImportFromTextDialog(false);
+										).then(() => setImportFromTextDialog(false));
 									};
 									if (isDirty)
 										setConfirmDialog({
@@ -722,7 +721,7 @@ export const ImportFromText = () => {
 										Korean — Revised Romanization
 									</Select.Item>
 									<Select.Item value={AutoRomanizationLanguage.Japanese}>
-										Japanese — Hepburn (Kana)
+										Japanese — Hepburn (Kana + Kanji)
 									</Select.Item>
 								</Select.Content>
 							</Select.Root>

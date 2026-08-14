@@ -37,6 +37,9 @@
 		"jotai-history": "^0.5.1",
 		"jotai-immer": "^0.4.3",
 		"jotai-optics": "^0.4.0",
+		"kuromoji": "^0.1.2",
+		"kuroshiro": "^1.2.0",
+		"kuroshiro-analyzer-kuromoji": "^1.1.0",
 		"radix-ui": "^1.6.2",
 		"react": "^19.2.7",
 		"react-dom": "^19.2.7",
@@ -47,6 +50,7 @@
 		"save-file": "^2.3.1",
 		"semver": "^7.8.5",
 		"uid": "^2.0.2",
+		"vite-plugin-static-copy": "^4.1.1",
 		"wanakana": "^5.3.1",
 		"workbox-window": "^7.4.1"
 	},

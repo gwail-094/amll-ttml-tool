@@ -7,8 +7,20 @@ import jotaiReactRefresh from "jotai-babel/plugin-react-refresh";
 import { defineConfig, type PluginOption } from "vite";
 import i18nextLoader from "vite-plugin-i18next-loader";
 import { VitePWA } from "vite-plugin-pwa";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 
 const isProduction = process.env.NODE_ENV === "production";
+
+const forceBrowserGlobal = (
+	content: string | Uint8Array,
+	globalName: string,
+) => {
+	const source = content.toString();
+	const factoryStart = source.indexOf("(function(){");
+	if (factoryStart < 0) return source;
+	const factory = source.slice(factoryStart).trim().replace(/;$/, "");
+	return `(function(factory){window.${globalName}=factory()})${factory}`;
+};
 
 const plugins: PluginOption = [
 	react(),
@@ -19,6 +31,31 @@ const plugins: PluginOption = [
 	i18nextLoader({
 		paths: ["./locales"],
 		namespaceResolution: "basename",
+	}),
+	viteStaticCopy({
+		targets: [
+			{
+				src: "node_modules/kuromoji/dict/*.dat.gz",
+				dest: "dict",
+				rename: { stripBase: true },
+			},
+			{
+				src: "node_modules/kuroshiro/dist/kuroshiro.min.js",
+				dest: "japanese",
+				rename: { stripBase: true },
+				transform(content) {
+					return forceBrowserGlobal(content, "Kuroshiro");
+				},
+			},
+			{
+				src: "node_modules/kuroshiro-analyzer-kuromoji/dist/kuroshiro-analyzer-kuromoji.min.js",
+				dest: "japanese",
+				rename: { stripBase: true },
+				transform(content) {
+					return forceBrowserGlobal(content, "KuromojiAnalyzer");
+				},
+			},
+		],
 	}),
 	{
 		name: "buildmeta",
