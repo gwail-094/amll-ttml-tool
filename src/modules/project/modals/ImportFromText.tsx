@@ -14,9 +14,8 @@ import { atomWithStorage } from "jotai/utils";
 import { memo, type PropsWithChildren, useCallback } from "react";
 import { toast } from "react-toastify";
 import type { SegmentationConfig } from "$/modules/segmentation/types";
-import { romanizeKorean } from "$/modules/segmentation/utils/koreanRomanization.ts";
+import { romanizeKoreanSegments } from "$/modules/segmentation/utils/koreanRomanization.ts";
 import { segmentWord } from "$/modules/segmentation/utils/segmentation.ts";
-import { predictLineRomanization } from "$/modules/segmentation/utils/Transliteration/distributor";
 import {
 	confirmDialogAtom,
 	importFromTextDialogAtom,
@@ -399,10 +398,8 @@ export const ImportFromText = () => {
 					!line.romanLyric.trim() &&
 					/[\uac00-\ud7af]/u.test(wholeLine)
 				) {
-					const romanizedLine = romanizeKorean(wholeLine);
-					const wordRomanizations = predictLineRomanization(
-						line.words,
-						romanizedLine,
+					const wordRomanizations = romanizeKoreanSegments(
+						line.words.map((word) => word.word),
 					);
 					for (const [index, word] of line.words.entries()) {
 						word.romanWord = wordRomanizations[index] ?? "";

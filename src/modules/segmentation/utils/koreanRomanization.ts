@@ -124,6 +124,151 @@ const NEXT_FINAL: Record<number, Partial<Record<number, string>>> = {
 	},
 };
 
+const NEXT_FINAL_PARTS: Record<
+	number,
+	Partial<Record<number, readonly [string, string]>>
+> = {
+	1: {
+		2: ["ng", "n"],
+		5: ["ng", "n"],
+		6: ["ng", "m"],
+		11: ["", "g"],
+		18: ["", "k"],
+	},
+	2: { 11: ["", "kk"] },
+	3: {
+		2: ["ng", "n"],
+		5: ["ng", "n"],
+		6: ["ng", "m"],
+		11: ["k", "s"],
+		18: ["", "k"],
+	},
+	4: { 5: ["l", "l"] },
+	5: {
+		2: ["n", "n"],
+		5: ["n", "n"],
+		6: ["n", "m"],
+		11: ["n", "j"],
+		18: ["", "ch"],
+	},
+	6: {
+		0: ["n", "k"],
+		2: ["n", "n"],
+		5: ["n", "n"],
+		6: ["n", "m"],
+		7: ["n", "b"],
+		11: ["n", "h"],
+		18: ["", "ch"],
+	},
+	7: {
+		2: ["n", "n"],
+		5: ["n", "n"],
+		6: ["n", "m"],
+		11: ["", "j"],
+		18: ["", "ch"],
+	},
+	8: { 11: ["", "r"] },
+	9: { 11: ["l", "g"] },
+	10: { 11: ["l", "m"] },
+	11: { 11: ["l", "b"] },
+	12: { 11: ["l", "s"] },
+	13: { 11: ["l", "t"] },
+	14: { 11: ["l", "p"] },
+	15: { 11: ["l", "h"] },
+	17: {
+		2: ["m", "n"],
+		5: ["m", "n"],
+		6: ["m", "m"],
+		11: ["", "b"],
+		18: ["", "p"],
+	},
+	18: { 11: ["p", "s"] },
+	19: { 2: ["n", "n"], 5: ["n", "n"], 6: ["n", "m"], 11: ["", "s"] },
+	20: { 11: ["", "ss"] },
+	22: {
+		2: ["n", "n"],
+		5: ["n", "n"],
+		6: ["n", "m"],
+		11: ["", "j"],
+		18: ["", "ch"],
+	},
+	23: {
+		2: ["n", "n"],
+		5: ["n", "n"],
+		6: ["n", "m"],
+		11: ["", "ch"],
+		18: ["", "ch"],
+	},
+	25: { 2: ["n", "n"], 5: ["n", "n"], 6: ["n", "m"], 18: ["", "ch"] },
+	27: {
+		0: ["", "k"],
+		1: ["", "kk"],
+		2: ["n", "n"],
+		3: ["", "t"],
+		4: ["", "tt"],
+		5: ["n", "n"],
+		6: ["n", "m"],
+		7: ["", "p"],
+		8: ["", "pp"],
+		9: ["", "s"],
+		10: ["", "ss"],
+		11: ["", "h"],
+		12: ["", "ch"],
+		13: ["", "jj"],
+		16: ["", "t"],
+		18: ["", "h"],
+	},
+};
+
+interface SyllableParts {
+	initial: number;
+	vowel: number;
+	final: number;
+}
+
+function decompose(character: string): SyllableParts | undefined {
+	const codePoint = character.charCodeAt(0);
+	if (codePoint < 0xac00 || codePoint > 0xd7a3) return undefined;
+	const syllableIndex = codePoint - 0xac00;
+	return {
+		initial: Math.floor(syllableIndex / 588),
+		vowel: Math.floor((syllableIndex % 588) / 28),
+		final: syllableIndex % 28,
+	};
+}
+
+/** Returns Korean-aware romanization aligned to the supplied lyric segments. */
+export function romanizeKoreanSegments(segments: string[]): string[] {
+	const result = segments.map(() => "");
+	const characters = segments.flatMap((segment, segmentIndex) =>
+		Array.from(segment).map((character) => ({
+			segmentIndex,
+			parts: decompose(character),
+		})),
+	);
+	const initialOverrides = new Map<number, string>();
+
+	for (let index = 0; index < characters.length; index++) {
+		const current = characters[index];
+		if (!current.parts) continue;
+		let finalRoman = FINALS[current.parts.final] ?? "";
+		const next = characters[index + 1];
+		if (current.parts.final > 0 && next?.parts) {
+			const contextual =
+				NEXT_FINAL_PARTS[current.parts.final]?.[next.parts.initial];
+			if (contextual) {
+				finalRoman = contextual[0];
+				initialOverrides.set(index + 1, contextual[1]);
+			}
+		}
+		result[current.segmentIndex] +=
+			(initialOverrides.get(index) ?? INITIALS[current.parts.initial] ?? "") +
+			(VOWELS[current.parts.vowel] ?? "") +
+			finalRoman;
+	}
+	return result;
+}
+
 type RomanToken =
 	| { kind: "initial" | "vowel" | "final"; index: number }
 	| { kind: "text"; value: string };
