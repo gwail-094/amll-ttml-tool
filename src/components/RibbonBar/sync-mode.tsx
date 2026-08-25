@@ -9,6 +9,18 @@
  * https://github.com/amll-dev/amll-ttml-tool/blob/main/LICENSE
  */
 
+import {
+	Checkbox,
+	Flex,
+	Grid,
+	Slider,
+	Text,
+	TextField,
+} from "@radix-ui/themes";
+import { useAtom } from "jotai";
+import { useSetImmerAtom } from "jotai-immer";
+import { type FC, forwardRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useCurrentLocation } from "$/modules/lyric-editor/utils/lyric-states.ts";
 import {
 	displayRomanizationInSyncAtom,
@@ -28,18 +40,6 @@ import {
 	keySyncStartAtom,
 } from "$/states/keybindings.ts";
 import { bgLyricIgnoreSyncAtom, lyricLinesAtom } from "$/states/main.ts";
-import {
-	Checkbox,
-	Flex,
-	Grid,
-	Slider,
-	Text,
-	TextField,
-} from "@radix-ui/themes";
-import { useAtom, useAtomValue } from "jotai";
-import { useSetImmerAtom } from "jotai-immer";
-import { type FC, forwardRef } from "react";
-import { useTranslation } from "react-i18next";
 import { KeyBinding } from "../KeyBinding/index.tsx";
 import { RibbonFrame, RibbonSection } from "./common";
 
@@ -188,10 +188,7 @@ export const SyncModeRibbonBar: FC = forwardRef<HTMLDivElement>(
 							onCheckedChange={(v) => setHighlightErrors(!!v)}
 						/>
 						<Text wrap="nowrap" size="1">
-							{t(
-								"ribbonBar.syncMode.showPerWordRomanization",
-								"显示逐字音译",
-							)}
+							{t("ribbonBar.syncMode.showPerWordRomanization", "显示逐字音译")}
 						</Text>
 						<Checkbox
 							checked={displayRomanizationInSync}

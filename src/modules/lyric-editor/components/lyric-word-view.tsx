@@ -968,7 +968,7 @@ const LyricWorldViewSync: FC<{
 			endTime={word.endTime}
 			displayWord={getDisplayWord(word.word, isWordBlank)}
 			romanization={
-				displayRomanizationInSync && word.romanWord.trim()
+				displayRomanizationInSync && word.romanWord?.trim()
 					? word.romanWord
 					: undefined
 			}

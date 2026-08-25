@@ -235,6 +235,9 @@ export const ImportFromText = () => {
 
 			const lines = text.split("\n");
 			const result: LyricLine[] = [];
+			const explicitRomanizationByLine = new Map<string, string>();
+			const cleanSubLyric = (value = "") =>
+				wordSeparator.length > 0 ? value.split(wordSeparator).join("") : value;
 
 			function addLine(orig = "", trans = "", roman = "") {
 				let finalOrig = orig;
@@ -301,14 +304,18 @@ export const ImportFromText = () => {
 						},
 					],
 					translatedLyric: mainTrans,
-					romanLyric: mainRoman,
+					romanLyric: cleanSubLyric(mainRoman),
 					isBG,
 					isDuet,
 				};
+				if (wordSeparator && mainRoman.includes(wordSeparator)) {
+					explicitRomanizationByLine.set(line.id, mainRoman);
+					line.romanLyric = "";
+				}
 
 				result.push(line);
 				if (backgroundText) {
-					result.push({
+					const backgroundLine: LyricLine = {
 						...newLyricLine(),
 						words: [
 							{
@@ -317,10 +324,15 @@ export const ImportFromText = () => {
 							},
 						],
 						translatedLyric: bgTrans,
-						romanLyric: bgRoman,
+						romanLyric: cleanSubLyric(bgRoman),
 						isBG: true,
 						isDuet,
-					});
+					};
+					if (wordSeparator && bgRoman.includes(wordSeparator)) {
+						explicitRomanizationByLine.set(backgroundLine.id, bgRoman);
+						backgroundLine.romanLyric = "";
+					}
+					result.push(backgroundLine);
 				}
 				return line;
 			}
@@ -339,18 +351,20 @@ export const ImportFromText = () => {
 				sub1?: KeysMatching<LyricLine, string>,
 				sub2?: KeysMatching<LyricLine, string>,
 			) {
-				const cleanSubLyric = (value = "") =>
-					wordSeparator.length > 0
-						? value.split(wordSeparator).join("")
-						: value;
 				const addLineWithSubs = (
 					orig: string,
 					subText1 = "",
 					subText2 = "",
 				) => {
 					const values: Record<string, string> = {};
-					if (sub1) values[sub1] = cleanSubLyric(subText1);
-					if (sub2) values[sub2] = cleanSubLyric(subText2);
+					if (sub1) {
+						values[sub1] =
+							sub1 === "romanLyric" ? subText1 : cleanSubLyric(subText1);
+					}
+					if (sub2) {
+						values[sub2] =
+							sub2 === "romanLyric" ? subText2 : cleanSubLyric(subText2);
+					}
 					addLine(orig, values.translatedLyric, values.romanLyric);
 				};
 
@@ -415,6 +429,51 @@ export const ImportFromText = () => {
 				customRules: new Map(),
 			};
 
+			const applyExplicitWordRomanization = (
+				line: LyricLine,
+				romanization: string,
+			) => {
+				const romanSegments = romanization.split(wordSeparator);
+				const originalGroups: number[][] = [];
+				const romanGroups: string[][] = [];
+				let originalGroup: number[] = [];
+				let romanGroup: string[] = [];
+
+				for (const [index, word] of line.words.entries()) {
+					if (word.word.trim() === "") {
+						if (originalGroup.length) originalGroups.push(originalGroup);
+						originalGroup = [];
+					} else {
+						originalGroup.push(index);
+					}
+				}
+				if (originalGroup.length) originalGroups.push(originalGroup);
+
+				for (const segment of romanSegments) {
+					if (segment.trim() === "") {
+						if (romanGroup.length) romanGroups.push(romanGroup);
+						romanGroup = [];
+					} else {
+						romanGroup.push(segment);
+					}
+				}
+				if (romanGroup.length) romanGroups.push(romanGroup);
+
+				for (const [groupIndex, originalIndices] of originalGroups.entries()) {
+					const romanParts = romanGroups[groupIndex] ?? [];
+					if (originalIndices.length === 1) {
+						line.words[originalIndices[0]].romanWord = romanParts.join("");
+						continue;
+					}
+					for (const [partIndex, wordIndex] of originalIndices.entries()) {
+						line.words[wordIndex].romanWord =
+							partIndex === originalIndices.length - 1
+								? romanParts.slice(partIndex).join("")
+								: (romanParts[partIndex] ?? "");
+					}
+				}
+			};
+
 			for (const line of result) {
 				const wholeLine = line.words.map((word) => word.word).join("");
 				const hasExplicitSeparators =
@@ -456,6 +515,12 @@ export const ImportFromText = () => {
 							automaticSegmentationConfig,
 						);
 					}
+				}
+
+				const explicitRomanization = explicitRomanizationByLine.get(line.id);
+				if (explicitRomanization) {
+					applyExplicitWordRomanization(line, explicitRomanization);
+					continue;
 				}
 
 				if (autoRomanizeEnabled && !line.romanLyric.trim()) {
