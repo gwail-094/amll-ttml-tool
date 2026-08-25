@@ -20,28 +20,42 @@ const EGYPTIAN_PRONUNCIATIONS: Record<string, string> = {
 	انت: "enta",
 	انتي: "enti",
 	انا: "ana",
+	اوام: "awam",
 	اوي: "awi",
+	بجد: "be-gad",
+	بهرتني: "baharteni",
 	بحبك: "bahebbak",
 	حاجة: "haga",
 	حبيبي: "habibi",
 	حبيبتي: "habibti",
+	حد: "hadd",
 	حلو: "helw",
 	حلوة: "helwa",
+	الحقيقة: "el-ha'ee'ah",
 	خلاص: "khalas",
 	ده: "da",
 	دي: "di",
 	دلوقتي: "dilwa'ti",
 	الدنيا: "el-donya",
 	اللي: "elli",
+	المشاعر: "el-mashaa'er",
 	الناس: "el-nas",
+	تبهر: "tebher",
+	تغير: "tighayyar",
+	جدع: "gada'",
 	عشان: "ashan",
+	عندك: "'andak",
 	عايز: "ayiz",
-	عايزة: "ayza",
+	عايزة: "'ayza",
 	علي: "ala",
+	طريقة: "taree'ah",
+	ف: "fe",
 	فيا: "fiyya",
 	فين: "feen",
+	قساوة: "'asawah",
 	قلب: "alb",
 	قلبي: "albi",
+	كام: "kam",
 	كل: "koll",
 	كده: "keda",
 	لا: "la",
@@ -51,32 +65,19 @@ const EGYPTIAN_PRONUNCIATIONS: Record<string, string> = {
 	مش: "mish",
 	من: "min",
 	مين: "meen",
+	موهوب: "maw'hoob",
 	نرجسية: "nargisiyya",
+	وانت: "we enta",
+	والقلوب: "wel-'oloob",
+	وخسرتني: "we khassarteni",
 	هنا: "hina",
 	هناك: "hinak",
 	هو: "howwa",
 	هي: "heyya",
 	يوم: "yom",
+	يادوب: "yadoob",
 	يا: "ya",
 };
-
-const EGYPTIAN_MARKERS = new Set([
-	"احنا",
-	"ايه",
-	"اوي",
-	"حاجة",
-	"ده",
-	"دي",
-	"دلوقتي",
-	"اللي",
-	"عايز",
-	"عايزة",
-	"فيا",
-	"كده",
-	"لسه",
-	"ليه",
-	"مش",
-]);
 
 const COMMON_PRONUNCIATIONS: Record<string, string> = {
 	انا: "ana",
@@ -156,14 +157,12 @@ function romanizeArabic(text: string): string {
 /** Pronunciation-oriented Arabic romanization aligned to editable word boxes. */
 export function romanizeArabicSegments(segments: string[]): string[] {
 	const normalized = segments.map(normalizeArabic);
-	const isEgyptian = normalized.some((word) => EGYPTIAN_MARKERS.has(word));
 
 	return segments.map((segment, index) => {
 		if (!ARABIC_TEXT.test(segment)) return "";
 		const word = normalized[index];
-		const pronunciation = isEgyptian
-			? EGYPTIAN_PRONUNCIATIONS[word]
-			: COMMON_PRONUNCIATIONS[word];
+		const pronunciation =
+			EGYPTIAN_PRONUNCIATIONS[word] ?? COMMON_PRONUNCIATIONS[word];
 		return pronunciation ?? romanizeArabic(segment);
 	});
 }
