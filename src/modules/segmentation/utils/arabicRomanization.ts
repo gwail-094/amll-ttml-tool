@@ -11,8 +11,11 @@ function normalizeArabic(text: string): string {
 		.replace(/ى/gu, "ي");
 }
 
-// Common Egyptian lyric forms need pronunciation data because ordinary Arabic
-// spelling usually omits the short vowels required for readable romanization.
+type ArabicDialect = "egyptian" | "levantine" | "gulf" | "maghrebi" | "msa";
+
+// Arabic normally omits short vowels, so readable lyric romanization needs
+// pronunciation dictionaries. The marker lists choose the most likely dialect
+// for each line; an uncertain line deliberately falls back to neutral Arabic.
 const EGYPTIAN_PRONUNCIATIONS: Record<string, string> = {
 	احلي: "ahla",
 	احنا: "ehna",
@@ -79,14 +82,138 @@ const EGYPTIAN_PRONUNCIATIONS: Record<string, string> = {
 	يا: "ya",
 };
 
+const LEVANTINE_PRONUNCIATIONS: Record<string, string> = {
+	بدي: "baddi",
+	بدك: "baddak",
+	بحبك: "bhebbak",
+	روح: "ruh",
+	شوفك: "shufak",
+	شو: "shu",
+	كتير: "kteer",
+	ليش: "lesh",
+	منيح: "mneeh",
+	مو: "mu",
+	هلق: "halla'",
+	هيك: "hayk",
+	هون: "hon",
+	وين: "wen",
+	رح: "rah",
+	عم: "'am",
+};
+
+const GULF_PRONUNCIATIONS: Record<string, string> = {
+	ابي: "abi",
+	ابغي: "abgha",
+	الحين: "el-heen",
+	زين: "zain",
+	شنو: "shinu",
+	شلون: "shlon",
+	ليش: "laish",
+	مب: "mub",
+	وايد: "wayed",
+	وش: "wesh",
+	وين: "wain",
+};
+
+const MAGHREBI_PRONUNCIATIONS: Record<string, string> = {
+	برشا: "barsha",
+	بزاف: "bezzaf",
+	بغيت: "bghit",
+	حيت: "heet",
+	دابا: "daba",
+	ديال: "dyal",
+	علاش: "'lash",
+	ماشي: "mashi",
+	واش: "wash",
+	شنو: "shnu",
+};
+
 const COMMON_PRONUNCIATIONS: Record<string, string> = {
 	انا: "ana",
+	انت: "enta",
+	الحقيقة: "el-ha'ee'ah",
+	المشاعر: "el-mashaa'er",
 	في: "fi",
 	لا: "la",
 	من: "min",
 	علي: "ala",
+	والقلوب: "wel-'oloob",
+	يوم: "yom",
 	يا: "ya",
 };
+
+const DIALECT_MARKERS: Record<Exclude<ArabicDialect, "msa">, Set<string>> = {
+	egyptian: new Set([
+		"احنا",
+		"ايه",
+		"اوام",
+		"اوي",
+		"بجد",
+		"حاجة",
+		"ده",
+		"دي",
+		"دلوقتي",
+		"عايز",
+		"عايزة",
+		"فيا",
+		"قساوة",
+		"كده",
+		"لسه",
+		"مش",
+		"يادوب",
+	]),
+	levantine: new Set([
+		"بدي",
+		"بدك",
+		"شو",
+		"كتير",
+		"منيح",
+		"مو",
+		"هلق",
+		"هيك",
+		"هون",
+		"رح",
+		"عم",
+	]),
+	gulf: new Set(["ابي", "ابغي", "الحين", "شلون", "مب", "وايد", "وش"]),
+	maghrebi: new Set([
+		"برشا",
+		"بزاف",
+		"بغيت",
+		"حيت",
+		"دابا",
+		"علاش",
+		"ماشي",
+		"واش",
+	]),
+};
+
+const DIALECT_PRONUNCIATIONS: Record<ArabicDialect, Record<string, string>> = {
+	egyptian: EGYPTIAN_PRONUNCIATIONS,
+	levantine: LEVANTINE_PRONUNCIATIONS,
+	gulf: GULF_PRONUNCIATIONS,
+	maghrebi: MAGHREBI_PRONUNCIATIONS,
+	msa: {},
+};
+
+function detectArabicDialect(words: string[]): ArabicDialect {
+	let bestDialect: ArabicDialect = "msa";
+	let bestScore = 0;
+	for (const [dialect, markers] of Object.entries(DIALECT_MARKERS) as [
+		Exclude<ArabicDialect, "msa">,
+		Set<string>,
+	][]) {
+		const score = words.reduce(
+			(total, word) => total + (markers.has(word) ? 1 : 0),
+			0,
+		);
+		if (score > bestScore) {
+			bestDialect = dialect;
+			bestScore = score;
+		}
+	}
+	return bestDialect;
+}
 
 const ARABIC_TO_LATIN: Record<string, string> = {
 	ء: "'",
@@ -139,7 +266,7 @@ export function segmentArabicText(text: string): string[] {
 	);
 }
 
-function romanizeArabic(text: string): string {
+function romanizeArabic(text: string, dialect: ArabicDialect): string {
 	let result = "";
 	let previousConsonant = "";
 	for (const character of text) {
@@ -147,7 +274,11 @@ function romanizeArabic(text: string): string {
 			result += previousConsonant;
 			continue;
 		}
-		const latin = ARABIC_TO_LATIN[character] ?? "";
+		let latin = ARABIC_TO_LATIN[character] ?? "";
+		if (dialect === "egyptian") {
+			if (character === "ق") latin = "'";
+			if (character === "ج") latin = "g";
+		}
 		result += latin;
 		if (latin && !/[aeiou]$/i.test(latin)) previousConsonant = latin;
 	}
@@ -157,12 +288,14 @@ function romanizeArabic(text: string): string {
 /** Pronunciation-oriented Arabic romanization aligned to editable word boxes. */
 export function romanizeArabicSegments(segments: string[]): string[] {
 	const normalized = segments.map(normalizeArabic);
+	const dialect = detectArabicDialect(normalized);
+	const dialectPronunciations = DIALECT_PRONUNCIATIONS[dialect];
 
 	return segments.map((segment, index) => {
 		if (!ARABIC_TEXT.test(segment)) return "";
 		const word = normalized[index];
 		const pronunciation =
-			EGYPTIAN_PRONUNCIATIONS[word] ?? COMMON_PRONUNCIATIONS[word];
-		return pronunciation ?? romanizeArabic(segment);
+			dialectPronunciations[word] ?? COMMON_PRONUNCIATIONS[word];
+		return pronunciation ?? romanizeArabic(segment, dialect);
 	});
 }
