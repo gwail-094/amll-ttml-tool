@@ -7,6 +7,11 @@ import saveFile from "save-file";
 import { uid } from "uid";
 import { useFileOpener } from "$/hooks/useFileOpener.ts";
 import { applyGeneratedRuby } from "$/modules/lyric-editor/utils/ruby-generator";
+import { ttmlLyricToLrc } from "$/modules/lrc-processor";
+import {
+	LyricExportFormat,
+	lyricExportFormatAtom,
+} from "$/modules/settings/states";
 import {
 	segmentLyricLines,
 	segmentWord,
@@ -54,6 +59,11 @@ import { type LyricWord, type LyricWordBase, newLyricWord } from "$/types/ttml";
 import { createLogger } from "$/utils/logger";
 
 const topMenuLogger = createLogger("TopMenu");
+
+function replaceFileExtension(fileName: string, extension: string): string {
+	const baseName = fileName.replace(/\.[^.]*$/, "");
+	return `${baseName || "lyric"}.${extension}`;
+}
 
 export const useTopMenuActions = () => {
 	const { t } = useTranslation();
@@ -177,14 +187,26 @@ export const useTopMenuActions = () => {
 
 	const onSaveFile = useCallback(() => {
 		try {
-			const amllResult = ttmlLyricToAmllResult(store.get(lyricLinesAtom));
-			const result = amllToTTML(amllResult);
-			if (!result.success) {
-				handleTtmlError(result.error, `Error when generating TTML`);
-				return;
+			const lyric = store.get(lyricLinesAtom);
+			if (store.get(lyricExportFormatAtom) === LyricExportFormat.Lrc) {
+				const b = new Blob([ttmlLyricToLrc(lyric)], {
+					type: "text/plain;charset=utf-8",
+				});
+				saveFile(b, replaceFileExtension(saveFileName, "lrc")).catch(
+					topMenuLogger.error,
+				);
+			} else {
+				const amllResult = ttmlLyricToAmllResult(lyric);
+				const result = amllToTTML(amllResult);
+				if (!result.success) {
+					handleTtmlError(result.error, `Error when generating TTML`);
+					return;
+				}
+				const b = new Blob([result.data], { type: "text/xml" });
+				saveFile(b, replaceFileExtension(saveFileName, "ttml")).catch(
+					topMenuLogger.error,
+				);
 			}
-			const b = new Blob([result.data], { type: "text/xml" });
-			saveFile(b, saveFileName).catch(topMenuLogger.error);
 		} catch (e) {
 			topMenuLogger.error("Failed to save TTML file", e);
 		}
@@ -197,13 +219,17 @@ export const useTopMenuActions = () => {
 	const onSaveFileToClipboard = useCallback(async () => {
 		try {
 			const lyric = store.get(lyricLinesAtom);
-			const amllResult = ttmlLyricToAmllResult(lyric);
-			const result = amllToTTML(amllResult);
-			if (!result.success) {
-				handleTtmlError(result.error, `Error when generating TTML`);
-				return;
+			if (store.get(lyricExportFormatAtom) === LyricExportFormat.Lrc) {
+				await navigator.clipboard.writeText(ttmlLyricToLrc(lyric));
+			} else {
+				const amllResult = ttmlLyricToAmllResult(lyric);
+				const result = amllToTTML(amllResult);
+				if (!result.success) {
+					handleTtmlError(result.error, `Error when generating TTML`);
+					return;
+				}
+				await navigator.clipboard.writeText(result.data);
 			}
-			await navigator.clipboard.writeText(result.data);
 		} catch (e) {
 			topMenuLogger.error("Failed to save TTML file into clipboard", e);
 		}

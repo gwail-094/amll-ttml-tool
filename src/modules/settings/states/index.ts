@@ -19,6 +19,11 @@ export enum TranslationOutputMode {
 	Amll = "amll",
 }
 
+export enum LyricExportFormat {
+	Ttml = "ttml",
+	Lrc = "lrc",
+}
+
 export const latencyTestBPMAtom = atomWithStorage("latencyTestBPM", 120);
 
 export const syncJudgeModeAtom = atomWithStorage(
@@ -31,6 +36,11 @@ export const layoutModeAtom = atomWithStorage("layoutMode", LayoutMode.Simple);
 export const translationOutputModeAtom = atomWithStorage(
 	"translationOutputMode",
 	TranslationOutputMode.AppleMusic,
+);
+
+export const lyricExportFormatAtom = atomWithStorage(
+	"lyricExportFormat",
+	LyricExportFormat.Ttml,
 );
 
 export const showWordRomanizationInputAtom = atomWithStorage(

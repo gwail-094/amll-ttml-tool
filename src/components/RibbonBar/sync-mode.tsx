@@ -13,6 +13,7 @@ import {
 	Checkbox,
 	Flex,
 	Grid,
+	Select,
 	Slider,
 	Text,
 	TextField,
@@ -26,6 +27,8 @@ import {
 	displayRomanizationInSyncAtom,
 	highlightActiveWordAtom,
 	highlightErrorsAtom,
+	LyricExportFormat,
+	lyricExportFormatAtom,
 	showTimestampsAtom,
 } from "$/modules/settings/states/index.ts";
 import {
@@ -87,6 +90,9 @@ export const SyncModeRibbonBar: FC = forwardRef<HTMLDivElement>(
 		);
 		const [bgLyricIgnoreSync, setBgLyricIgnoreSync] = useAtom(
 			bgLyricIgnoreSyncAtom,
+		);
+		const [lyricExportFormat, setLyricExportFormat] = useAtom(
+			lyricExportFormatAtom,
 		);
 		const editLyricLines = useSetImmerAtom(lyricLinesAtom);
 		const [syncTimeOffset, setSyncTimeOffset] = useAtom(syncTimeOffsetAtom);
@@ -222,6 +228,26 @@ export const SyncModeRibbonBar: FC = forwardRef<HTMLDivElement>(
 							<KeyBinding kbdAtom={keySyncEndAtom} />
 						</Grid>
 					</Flex>
+				</RibbonSection>
+				<RibbonSection label={t("ribbonBar.syncMode.export", "导出")}>
+					<Grid columns="0fr 8em" gap="2" gapY="1" flexGrow="1" align="center">
+						<Text wrap="nowrap" size="1">
+							{t("ribbonBar.syncMode.exportFormat", "歌词格式")}
+						</Text>
+						<Select.Root
+							size="1"
+							value={lyricExportFormat}
+							onValueChange={(value) =>
+								setLyricExportFormat(value as LyricExportFormat)
+							}
+						>
+							<Select.Trigger />
+							<Select.Content>
+								<Select.Item value={LyricExportFormat.Ttml}>TTML</Select.Item>
+								<Select.Item value={LyricExportFormat.Lrc}>LRC</Select.Item>
+							</Select.Content>
+						</Select.Root>
+					</Grid>
 				</RibbonSection>
 			</RibbonFrame>
 		);
