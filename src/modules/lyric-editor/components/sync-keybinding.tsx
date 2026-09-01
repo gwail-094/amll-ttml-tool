@@ -13,6 +13,8 @@ import {
 	isSynchronizableLine,
 } from "$/modules/lyric-editor/utils/lyric-states";
 import {
+	LyricExportFormat,
+	lyricExportFormatAtom,
 	SyncJudgeMode,
 	smartFirstWordAtom,
 	smartLastWordAtom,
@@ -89,6 +91,42 @@ const setUnitEndTime = (
 	word.endTime = time;
 };
 
+function getLineText(line: LyricLine): string {
+	return line.words.map((word) => word.word).join("");
+}
+
+function findNextSynchronizableLine(
+	lines: LyricLine[],
+	lineIndex: number,
+): { line: LyricLine; lineIndex: number } | undefined {
+	const nextLineIndex = lines
+		.slice(lineIndex + 1)
+		.findIndex(
+			(line) => isSynchronizableLine(line) && getLineText(line).trim() !== "",
+		);
+	if (nextLineIndex === -1) return;
+	const absoluteIndex = lineIndex + 1 + nextLineIndex;
+	const line = lines[absoluteIndex];
+	if (!line) return;
+	return { line, lineIndex: absoluteIndex };
+}
+
+function setLineStartTime(line: LyricLine, time: number) {
+	line.startTime = time;
+	const firstUnit = getFirstSynchronizableUnit(line);
+	if (firstUnit) {
+		setUnitStartTime(line, firstUnit.wordIndex, firstUnit.rubyIndex, time);
+	}
+}
+
+function setLineEndTime(line: LyricLine, time: number) {
+	line.endTime = time;
+	const lastUnit = getLastSynchronizableUnit(line);
+	if (lastUnit) {
+		setUnitEndTime(line, lastUnit.wordIndex, lastUnit.rubyIndex, time);
+	}
+}
+
 export const SyncKeyBinding: FC = () => {
 	const store = useStore();
 
@@ -156,6 +194,25 @@ export const SyncKeyBinding: FC = () => {
 		() => moveToNextWordBase(true),
 		[moveToNextWordBase],
 	);
+
+	const moveToNextLine = useCallback((): boolean => {
+		const location = getCurrentLineLocation(store);
+		if (!location) return false;
+		const nextLine = findNextSynchronizableLine(
+			location.lines,
+			location.lineIndex,
+		);
+		if (!nextLine) return false;
+		store.set(selectedLinesAtom, new Set([nextLine.line.id]));
+		const firstUnit = getFirstSynchronizableUnit(nextLine.line);
+		if (!firstUnit) {
+			store.set(selectedWordsAtom, new Set());
+		} else {
+			store.set(selectedWordsAtom, new Set([firstUnit.id]));
+		}
+		store.set(currentEmptyBeatAtom, 0);
+		return true;
+	}, [store]);
 
 	const moveToPrevWordBase = useCallback(
 		(play: boolean): boolean => {
@@ -295,6 +352,35 @@ export const SyncKeyBinding: FC = () => {
 	useKeyBindingAtom(
 		keySyncNextAtom,
 		(evt) => {
+			if (store.get(lyricExportFormatAtom) === LyricExportFormat.Lrc) {
+				const location = getCurrentLineLocation(store);
+				if (!location) return;
+				const currentTime = calcJudgeTime(evt);
+
+				store.set(lyricLinesAtom, (state) =>
+					produce(state, (state) => {
+						const line = state.lyricLines[location.lineIndex];
+						if (!line) return;
+
+						const previousLine = state.lyricLines
+							.slice(0, location.lineIndex)
+							.reverse()
+							.find(
+								(line) =>
+									isSynchronizableLine(line) && getLineText(line).trim() !== "",
+							);
+						if (previousLine) {
+							setLineEndTime(previousLine, currentTime);
+						}
+
+						setLineStartTime(line, currentTime);
+					}),
+				);
+
+				moveToNextLine();
+				return;
+			}
+
 			const location = getCurrentLocation(store);
 			if (!location) return;
 			const currentTime = calcJudgeTime(evt);
@@ -388,7 +474,7 @@ export const SyncKeyBinding: FC = () => {
 				}
 			}
 		},
-		[store, moveToNextWord],
+		[store, moveToNextWord, moveToNextLine, calcJudgeTime],
 	);
 	useKeyBindingAtom(
 		keySyncEndAtom,
