@@ -52,6 +52,11 @@ function shouldExportLine(line: LyricLine): boolean {
 	return !line.isBG && getLineText(line).trim() !== "";
 }
 
+// Jellyfin keeps only the timestamps and the lyric text of an LRC file and drops
+// its tags, so the songwriters also go in as a last lyric line. JellyMuse shows a
+// closing line that starts with this prefix as the "Written By" credit.
+const LRC_CREDIT_PREFIX = "Written By:";
+
 export function ttmlLyricToLrc(ttmlLyric: TTMLLyric): string {
 	const metadataLines = ["musicName", "artists", "album", "songwriter"]
 		.map((key) => formatMetadataLine(ttmlLyric.metadata, key))
@@ -64,7 +69,20 @@ export function ttmlLyricToLrc(ttmlLyric: TTMLLyric): string {
 				`${formatLrcTimestamp(line.startTime)}${getLineText(line).trim()}`,
 		);
 
-	return [...metadataLines, ...lyricLines].join("\n");
+	const songwriters = getMetadataValues(ttmlLyric.metadata, "songwriter");
+	const creditLines: string[] = [];
+	if (songwriters.length > 0) {
+		const exported = ttmlLyric.lyricLines.filter(shouldExportLine);
+		const lyricsEnd = Math.max(
+			0,
+			...exported.map((line) => Math.max(line.startTime, line.endTime)),
+		);
+		creditLines.push(
+			`${formatLrcTimestamp(lyricsEnd + 10)}${LRC_CREDIT_PREFIX} ${songwriters.join(", ")}`,
+		);
+	}
+
+	return [...metadataLines, ...lyricLines, ...creditLines].join("\n");
 }
 
 const LRC_TAG_TO_METADATA_KEY: Record<string, string> = Object.fromEntries(
