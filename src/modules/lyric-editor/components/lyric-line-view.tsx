@@ -42,8 +42,11 @@ import {
 import { useTranslation } from "react-i18next";
 import { LyricLineMenu } from "$/components/Menus/lyric-line-menu.tsx";
 import { predictLineRomanization } from "$/modules/segmentation/utils/Transliteration/distributor";
+import { getFirstSynchronizableUnit } from "$/modules/lyric-editor/utils/lyric-states";
 import {
 	enableAutoRomanizationPredictionAtom,
+	LyricExportFormat,
+	lyricExportFormatAtom,
 	showLineRomanizationAtom,
 	showLineTranslationAtom,
 	showTimestampsAtom,
@@ -293,6 +296,9 @@ export const LyricLineView: FC<{
 	const showTimestamps = useAtomValue(showTimestampsAtom);
 	const showEndTimeAsDuration = useAtomValue(showEndTimeAsDurationAtom);
 	const toolMode = useAtomValue(toolModeAtom);
+	const lrcSync =
+		useAtomValue(lyricExportFormatAtom) === LyricExportFormat.Lrc &&
+		toolMode === ToolMode.Sync;
 	const isDragging = useAtomValue(isDraggingGlobalAtom);
 	const dragSource = useAtomValue(dragSourceAtom);
 	const store = useStore();
@@ -570,56 +576,84 @@ export const LyricLineView: FC<{
 									)}
 									ref={wordsContainerRef}
 								>
-									{words.map((wordAtom, wi) => {
-										const word = store.get(wordAtom);
-										return (
-											<Fragment key={`word-${word.id}`}>
-												{enableInsert && (
-													<IconButton
-														size="1"
-														variant="soft"
-														onClick={(evt) => {
-															evt.preventDefault();
-															evt.stopPropagation();
-															editLyricLines((state) => {
-																state.lyricLines[lineIndex].words.splice(
-																	wi,
-																	0,
-																	newLyricWord(),
-																);
-															});
-														}}
+									{lrcSync && (
+										<div
+											className={classNames(
+												styles.lyricWord,
+												styles.sync,
+												lineSelected && styles.selected,
+											)}
+											style={{ minWidth: 0, justifyContent: "flex-start" }}
+											onClick={(evt) => {
+												evt.stopPropagation();
+												evt.preventDefault();
+												store.set(selectedLinesAtom, new Set([line.id]));
+												const firstUnit = getFirstSynchronizableUnit(line);
+												store.set(
+													selectedWordsAtom,
+													new Set(firstUnit ? [firstUnit.id] : []),
+												);
+											}}
+										>
+											<div className={styles.syncWordText}>
+												<div className={styles.displayWord}>
+													{line.words.map((word) => word.word).join("") ||
+														"\u00A0"}
+												</div>
+											</div>
+										</div>
+									)}
+									{!lrcSync &&
+										words.map((wordAtom, wi) => {
+											const word = store.get(wordAtom);
+											return (
+												<Fragment key={`word-${word.id}`}>
+													{enableInsert && (
+														<IconButton
+															size="1"
+															variant="soft"
+															onClick={(evt) => {
+																evt.preventDefault();
+																evt.stopPropagation();
+																editLyricLines((state) => {
+																	state.lyricLines[lineIndex].words.splice(
+																		wi,
+																		0,
+																		newLyricWord(),
+																	);
+																});
+															}}
+														>
+															<AddFilled />
+														</IconButton>
+													)}
+													<Flex
+														direction="column"
+														align="stretch"
+														gap="3"
+														data-word-index={wi}
+														className={styles.wordGroup}
+														onPointerDown={(e) => e.stopPropagation()}
 													>
-														<AddFilled />
-													</IconButton>
-												)}
-												<Flex
-													direction="column"
-													align="stretch"
-													gap="3"
-													data-word-index={wi}
-													className={styles.wordGroup}
-													onPointerDown={(e) => e.stopPropagation()}
-												>
-													<LyricWordView
-														wordAtom={wordAtom}
-														wordIndex={wi}
-														line={line}
-														lineIndex={lineIndex}
-													/>
-													{toolMode === ToolMode.Edit &&
-														showWordRomanizationInput && (
-															<RomanWordView
-																wordAtom={wordAtom}
-																wordIndex={wi}
-																editingIndexAtom={editingRomanWordIndexAtom}
-																suggestedRoman={suggestedRomans[wi]}
-															/>
-														)}
-												</Flex>
-											</Fragment>
-										);
-									})}
+														<LyricWordView
+															wordAtom={wordAtom}
+															wordIndex={wi}
+															line={line}
+															lineIndex={lineIndex}
+														/>
+														{toolMode === ToolMode.Edit &&
+															showWordRomanizationInput && (
+																<RomanWordView
+																	wordAtom={wordAtom}
+																	wordIndex={wi}
+																	editingIndexAtom={editingRomanWordIndexAtom}
+																	suggestedRoman={suggestedRomans[wi]}
+																/>
+															)}
+													</Flex>
+												</Fragment>
+											);
+										})}
 									{enableInsert && (
 										<IconButton
 											size="1"
@@ -716,27 +750,32 @@ export const LyricLineView: FC<{
 									<div className={styles.startTime} ref={startTimeRef}>
 										{msToTimestamp(line.startTime)}
 									</div>
-									<button
-										type="button"
-										className={classNames(styles.endTime, styles.endTimeButton)}
-										ref={endTimeRef}
-										onClick={onToggleEndTimeLink}
-									>
-										<span
-											style={{
-												display: "inline-flex",
-												alignItems: "center",
-											}}
-										>
-											{endTimeLinked ? (
-												<LinkMultiple20Regular />
-											) : showEndTimeAsDuration ? (
-												`+${line.endTime - line.startTime}ms`
-											) : (
-												msToTimestamp(line.endTime)
+									{!lrcSync && (
+										<button
+											type="button"
+											className={classNames(
+												styles.endTime,
+												styles.endTimeButton,
 											)}
-										</span>
-									</button>
+											ref={endTimeRef}
+											onClick={onToggleEndTimeLink}
+										>
+											<span
+												style={{
+													display: "inline-flex",
+													alignItems: "center",
+												}}
+											>
+												{endTimeLinked ? (
+													<LinkMultiple20Regular />
+												) : showEndTimeAsDuration ? (
+													`+${line.endTime - line.startTime}ms`
+												) : (
+													msToTimestamp(line.endTime)
+												)}
+											</span>
+										</button>
+									)}
 								</Flex>
 							)}
 						</div>

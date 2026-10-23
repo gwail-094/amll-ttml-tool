@@ -100,13 +100,21 @@ export const SyncModeRibbonBar: FC = forwardRef<HTMLDivElement>(
 
 		return (
 			<RibbonFrame ref={ref}>
-				<RibbonSection
-					label={t("ribbonBar.syncMode.currentEmptyBeat", "当前空拍")}
-				>
-					<Grid columns="0fr 4em" gap="4" gapY="1" flexGrow="1" align="center">
-						<EmptyBeatField />
-					</Grid>
-				</RibbonSection>
+				{lyricExportFormat !== LyricExportFormat.Lrc && (
+					<RibbonSection
+						label={t("ribbonBar.syncMode.currentEmptyBeat", "当前空拍")}
+					>
+						<Grid
+							columns="0fr 4em"
+							gap="4"
+							gapY="1"
+							flexGrow="1"
+							align="center"
+						>
+							<EmptyBeatField />
+						</Grid>
+					</RibbonSection>
+				)}
 				<RibbonSection
 					label={t("ribbonBar.syncMode.syncAdjustment", "打轴调整")}
 				>
