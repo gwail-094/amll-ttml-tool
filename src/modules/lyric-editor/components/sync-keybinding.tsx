@@ -333,6 +333,7 @@ export const SyncKeyBinding: FC = () => {
 						if (line) setLineStartTime(line, currentTime);
 					}),
 				);
+				moveToNextLine();
 				return;
 			}
 			const location = getCurrentLocation(store);
@@ -359,7 +360,7 @@ export const SyncKeyBinding: FC = () => {
 				}),
 			);
 		},
-		[store],
+		[store, moveToNextLine, calcJudgeTime],
 	);
 	useKeyBindingAtom(
 		keySyncNextAtom,
