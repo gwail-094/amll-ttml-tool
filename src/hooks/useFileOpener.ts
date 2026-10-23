@@ -36,6 +36,7 @@ import {
 } from "$/states/main.ts";
 import type { TTMLLyric, TTMLMetadata } from "$/types/ttml";
 import { createLogger } from "$/utils/logger";
+import { parseLrcMetadata } from "$/modules/lrc-processor";
 import { parseLrc } from "$/utils/parse-lrc";
 
 const fileOpenerLogger = createLogger("FileOpener");
@@ -231,6 +232,9 @@ export const useFileOpener = () => {
 					const parser = LYRIC_PARSERS[ext];
 					const rawLines = parser(text);
 					lyricData = normalizeLyricLines(rawLines);
+					if (ext === "lrc") {
+						lyricData.metadata = parseLrcMetadata(text);
+					}
 				} else {
 					toast.error(
 						t("error.unsupportedFileFormat", "不支持的文件格式: {ext}", {

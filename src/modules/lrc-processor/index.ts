@@ -49,7 +49,7 @@ function getLineText(line: LyricLine): string {
 }
 
 function shouldExportLine(line: LyricLine): boolean {
-	return getLineText(line).trim() !== "";
+	return !line.isBG && getLineText(line).trim() !== "";
 }
 
 export function ttmlLyricToLrc(ttmlLyric: TTMLLyric): string {
@@ -59,7 +59,43 @@ export function ttmlLyricToLrc(ttmlLyric: TTMLLyric): string {
 
 	const lyricLines = ttmlLyric.lyricLines
 		.filter(shouldExportLine)
-		.map((line) => `${formatLrcTimestamp(line.startTime)}${getLineText(line)}`);
+		.map(
+			(line) =>
+				`${formatLrcTimestamp(line.startTime)}${getLineText(line).trim()}`,
+		);
 
 	return [...metadataLines, ...lyricLines].join("\n");
+}
+
+const LRC_TAG_TO_METADATA_KEY: Record<string, string> = Object.fromEntries(
+	Object.entries(LRC_METADATA_KEYS).map(([key, tag]) => [tag, key]),
+);
+
+/**
+ * Reads `[ti:]` / `[ar:]` / `[al:]` / `[au:]` header tags from an LRC file.
+ * Repeated tags are collected into one metadata entry; the combined
+ * `a, b` form written by {@link ttmlLyricToLrc} is split back into values.
+ */
+export function parseLrcMetadata(lrcContent: string): TTMLMetadata[] {
+	const result: TTMLMetadata[] = [];
+	const tagRegex = /^\s*\[([a-z]+):(.*)\]\s*$/i;
+
+	for (const line of lrcContent.split(/\r?\n/)) {
+		const match = tagRegex.exec(line);
+		if (!match) continue;
+		const key = LRC_TAG_TO_METADATA_KEY[match[1].toLowerCase()];
+		if (!key) continue;
+
+		const values = match[2]
+			.split(/\s*,\s*/)
+			.map((value) => value.trim())
+			.filter((value) => value !== "");
+		if (values.length === 0) continue;
+
+		const existing = result.find((item) => item.key === key);
+		if (existing) existing.value.push(...values);
+		else result.push({ key, value: values });
+	}
+
+	return result;
 }

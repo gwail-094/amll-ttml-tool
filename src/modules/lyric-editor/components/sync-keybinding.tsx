@@ -323,6 +323,18 @@ export const SyncKeyBinding: FC = () => {
 	useKeyBindingAtom(
 		keySyncStartAtom,
 		(evt) => {
+			if (store.get(lyricExportFormatAtom) === LyricExportFormat.Lrc) {
+				const location = getCurrentLineLocation(store);
+				if (!location) return;
+				const currentTime = calcJudgeTime(evt);
+				store.set(lyricLinesAtom, (state) =>
+					produce(state, (state) => {
+						const line = state.lyricLines[location.lineIndex];
+						if (line) setLineStartTime(line, currentTime);
+					}),
+				);
+				return;
+			}
 			const location = getCurrentLocation(store);
 			if (!location) return;
 			const currentTime = calcJudgeTime(evt);
@@ -479,6 +491,19 @@ export const SyncKeyBinding: FC = () => {
 	useKeyBindingAtom(
 		keySyncEndAtom,
 		(evt) => {
+			if (store.get(lyricExportFormatAtom) === LyricExportFormat.Lrc) {
+				const location = getCurrentLineLocation(store);
+				if (!location) return;
+				const currentTime = calcJudgeTime(evt);
+				store.set(lyricLinesAtom, (state) =>
+					produce(state, (state) => {
+						const line = state.lyricLines[location.lineIndex];
+						if (line) setLineEndTime(line, currentTime);
+					}),
+				);
+				moveToNextLine();
+				return;
+			}
 			const location = getCurrentLocation(store);
 			if (!location) return;
 			const currentTime = calcJudgeTime(evt);
@@ -498,7 +523,7 @@ export const SyncKeyBinding: FC = () => {
 			);
 			moveToNextWord();
 		},
-		[store, moveToNextWord],
+		[store, moveToNextWord, moveToNextLine, calcJudgeTime],
 	);
 
 	return null;
